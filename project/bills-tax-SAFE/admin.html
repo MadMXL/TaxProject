@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#16233E">
+  <title>Users · Baigamgab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script>
+    try {
+      var m = localStorage.getItem('appMode');
+      if (m === 'dark' || (!m && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (e) {}
+  </script>
+  <style>
+    .role-badge { display:inline-flex; align-items:center; padding:2px 9px; border-radius:var(--r-pill); font-size:var(--t-micro); font-weight:600; }
+    .r-admin      { background:var(--st-rejected-wash); color:var(--st-rejected); }
+    .r-manager    { background:var(--st-info-wash);     color:var(--st-info); }
+    .r-sales      { background:var(--st-approved-wash); color:var(--st-approved); }
+    .r-technician { background:var(--st-draft-wash);    color:var(--st-draft); }
+    .role-select  { width:auto; padding:5px 8px; font-size:var(--t-micro); }
+    .loading-row td { text-align:center; color:var(--ink-3); padding:24px; }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#EAF0F8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9.5 12l1.8 1.8L15 10"/>
+        </svg>
+      </span>
+      <span><span class="brand-name">Baigamgab</span> <span class="brand-sub">Admin</span></span>
+    </div>
+    <div class="topbar-actions">
+      <a class="ghost-btn" href="index.html">← Back to app</a>
+      <button class="ghost-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="view" style="max-width:900px;margin:0 auto;">
+    <div class="view-head">
+      <div><h1>User Management</h1><p id="adminInfo">Manage accounts and roles for your team</p></div>
+    </div>
+
+    <div class="card card-pad stack">
+      <span class="card-title" id="cardTitle">Create new user account</span>
+      <div class="notice">After creating a user here, share their email and temporary password. They can sign in immediately.</div>
+      <div class="grid-2">
+        <div class="field"><span class="field-label">Full name *</span><input class="input" type="text" id="newName" placeholder="e.g. John Smith"></div>
+        <div class="field"><span class="field-label">Email *</span><input class="input" type="email" id="newEmail" placeholder="john@company.com"></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><span class="field-label">Temporary password *</span><input class="input" type="password" id="newPassword" placeholder="Min 6 characters"></div>
+        <div class="field"><span class="field-label">Role *</span>
+          <select class="select" id="newRole">
+            <option value="sales">Sales</option>
+            <option value="technician">Technician</option>
+            <option id="optManager" value="manager">Manager</option>
+            <option id="optAdmin" value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div><button class="btn btn-primary" onclick="createUser()" id="createBtn">Create User</button></div>
+      <div class="alert-err hidden" id="createError"></div>
+      <div class="alert-ok hidden" id="createSuccess"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">All users</span></div>
+      <div class="table-wrap">
+        <table class="table" style="min-width:620px;">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Change role</th></tr></thead>
+          <tbody id="userTable"><tr class="loading-row"><td colspan="5">Loading users…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const cfg = {
+  apiKey: "AIzaSyDeVDOI9RfjY9BKrpRBmueg8GBRjAG2lbc",
+  authDomain: "baigumgub.firebaseapp.com",
+  databaseURL: "https://baigumgub-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "baigumgub",
+  storageBucket: "baigumgub.firebasestorage.app",
+  messagingSenderId: "499376326897",
+  appId: "1:499376326897:web:b3a2ab6f883d4a19178150"
+};
+firebase.initializeApp(cfg);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+const role = sessionStorage.getItem('userRole');
+const name = sessionStorage.getItem('userName');
+if (!role) { window.location.href = 'login.html'; }
+if (role !== 'admin' && role !== 'manager') {
+  alert('Access denied — Admin or Manager only.');
+  window.location.href = 'index.html';
+}
+
+const isManager = role === 'manager';
+document.getElementById('adminInfo').textContent = 'Signed in as ' + (name || role) + (isManager ? ' · Manager, can add Sales & Technician only' : ' · Full access');
+
+function waitForAuth() {
+  return new Promise(resolve => {
+    if (auth.currentUser) { resolve(auth.currentUser); return; }
+    let done = false;
+    const unsub = auth.onAuthStateChanged(user => {
+      if (user) { done = true; unsub(); resolve(user); }
+    });
+    setTimeout(() => { if (!done) { unsub(); resolve(null); } }, 6000);
+  });
+}
+
+initPage();
+
+function initPage() {
+
+  function roleBadge(r) {
+    const cls = { admin:'r-admin', manager:'r-manager', sales:'r-sales', technician:'r-technician' };
+    const label = { admin:'Admin', manager:'Manager', sales:'Sales', technician:'Technician' };
+    return `<span class="role-badge ${cls[r] || 'r-sales'}">${label[r] || r}</span>`;
+  }
+
+  window.loadUsers = async function loadUsers() {
+    const tbody = document.getElementById('userTable');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
+    const authUser = await waitForAuth();
+    if (!authUser) {
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Session expired — please <a href="login.html">sign in again</a>.</td></tr>';
+      return;
+    }
+    db.ref('users').once('value').then(snap => {
+      const data = snap.val();
+      if (!data) { tbody.innerHTML = '<tr class="loading-row"><td colspan="5">No users in database yet.</td></tr>'; return; }
+      tbody.innerHTML = Object.entries(data).map(([uid, u]) => `
+        <tr>
+          <td class="cell-strong">${u.name || '—'}</td>
+          <td class="muted">${u.email || '—'}</td>
+          <td>${roleBadge(u.role)}</td>
+          <td class="muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+          <td>
+            <select class="select role-select" id="role_${uid}" onchange="saveRole('${uid}', '${u.role}')">
+              <option value="sales" ${u.role === 'sales' ? 'selected' : ''}>Sales</option>
+              <option value="technician" ${u.role === 'technician' ? 'selected' : ''}>Technician</option>
+              ${!isManager ? `<option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option>` : ''}
+              ${!isManager ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>` : ''}
+            </select>
+          </td>
+        </tr>`).join('');
+    }).catch(err => {
+      tbody.innerHTML = `<tr class="loading-row"><td colspan="5">Error loading users: ${err.message}</td></tr>`;
+    });
+  };
+
+  if (isManager) {
+    document.getElementById('optManager').style.display = 'none';
+    document.getElementById('optAdmin').style.display = 'none';
+    document.getElementById('cardTitle').textContent = 'Create new user account (Sales & Technician only)';
+  }
+  loadUsers();
+}
+
+async function saveRole(uid, currentRole) {
+  const newRole = document.getElementById('role_' + uid).value;
+  if (isManager && (newRole === 'admin' || newRole === 'manager')) {
+    showMsg('createError', 'Managers cannot assign Admin or Manager roles.');
+    document.getElementById('role_' + uid).value = currentRole;
+    return;
+  }
+  await db.ref('users/' + uid + '/role').set(newRole);
+  showMsg('createSuccess', 'Role updated to ' + newRole + '.');
+}
+
+async function createUser() {
+  const name     = document.getElementById('newName').value.trim();
+  const email    = document.getElementById('newEmail').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const roleSel  = document.getElementById('newRole').value;
+  const btn      = document.getElementById('createBtn');
+
+  document.getElementById('createError').classList.add('hidden');
+  document.getElementById('createSuccess').classList.add('hidden');
+
+  if (!name || !email || !password) { showMsg('createError', 'Please fill all fields.'); return; }
+  if (password.length < 6) { showMsg('createError', 'Password must be at least 6 characters.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  try {
+    const authUser = await waitForAuth();
+    if (!authUser) {
+      showMsg('createError', 'Session expired — please sign out and sign in again.');
+      btn.disabled = false; btn.textContent = 'Create User';
+      return;
+    }
+    let secondaryApp;
+    try { secondaryApp = firebase.app('secondary'); }
+    catch (e) { secondaryApp = firebase.initializeApp(cfg, 'secondary'); }
+    const secondaryAuth = secondaryApp.auth();
+    let uid;
+    try {
+      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+      uid = cred.user.uid;
+      await secondaryAuth.signOut();
+    } catch (authErr) {
+      if (authErr.code === 'auth/email-already-in-use') {
+        const cred = await secondaryAuth.signInWithEmailAndPassword(email, password);
+        uid = cred.user.uid;
+        await secondaryAuth.signOut();
+      } else { throw authErr; }
+    }
+    await db.ref('users/' + uid).set({
+      name, email, role: roleSel,
+      createdAt: new Date().toISOString(),
+      createdBy: sessionStorage.getItem('userId') || 'admin'
+    });
+    showMsg('createSuccess', `User "${name}" saved as ${roleSel}. Login: ${email} / ${password}`);
+    document.getElementById('newName').value = '';
+    document.getElementById('newEmail').value = '';
+    document.getElementById('newPassword').value = '';
+    loadUsers();
+  } catch (err) {
+    const msgs = {
+      'auth/invalid-email':  'Invalid email address.',
+      'auth/weak-password':  'Password must be at least 6 characters.',
+      'auth/wrong-password': 'Email exists but password is wrong — use the correct password to link this account.',
+    };
+    showMsg('createError', msgs[err.code] || err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create User';
+  }
+}
+
+function showMsg(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 4500);
+}
+
+function doLogout() {
+  auth.signOut().then(() => {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+  });
+}
+</script>
+</body>
+</html>
