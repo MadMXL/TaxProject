@@ -7,6 +7,11 @@
 // ── NUMBER FORMATTERS ─────────────────────────────────────────
 function fmt(n)    { return (n == null || isNaN(n)) ? '0.00' : Number(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
 function fmtNum(n) { return fmt(n); }
+// Today as YYYY-MM-DD in the user's local time (toISOString is UTC, so it would
+// give yesterday's date in Thailand before 07:00).
+function localDateISO(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function fmtInt(n) { return (n == null || isNaN(n)) ? '0' : Math.round(Number(n)).toLocaleString('en-US'); }
 function esc(s)    { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function baht(n)   { return '<span class="cur">฿</span>' + fmt(n); }
@@ -27,7 +32,7 @@ const LANG = {
     costs:'Costs', cheapest:'Cheapest',
     view:'View', edit:'Edit', del:'Delete', submit:'Submit', pdf:'PDF',
     approve:'Approve', reject:'Reject',
-    addCustomer:'Add Customer', addUser:'Add User',
+    addCustomer:'Add Customer', editCustomer:'Edit Customer', addUser:'Add User',
     createUser:'Create User', saveDocument:'Save Document', saveDocument2:'Save',
     overview:'Dashboard', activitySummary:'Your billing activity at a glance',
     totalRevenue:'Total Revenue', vatCollected:'VAT Collected',
@@ -71,6 +76,40 @@ const LANG = {
     fullName:'Full name', password:'Password', roleLbl:'Role',
     scanToOpen:'Scan to open',
     itemCol:'Item', qtyCol:'Qty', priceCol:'Price',
+    itemN:'Item #', updateDocument:'Update Document', editDocument:'Edit Document',
+    customerPh:'Type a name or pick an existing customer', existingCustomer:'Existing customer — details filled in',
+    saveAsCustomer:'Save as new customer', itemPh:'Type a name or pick a previous one',
+    optionalDetail:'Optional detail', addressPh:'Street, City, Postal Code', notesPh:'Payment terms, additional info…',
+    undo:'Undo', restored:'Restored',
+    archiveFailed:'Could not move the record to the archive, so it was kept. Check that the database rules are deployed.',
+    restoreClash:'A live record with this ID already exists', nothingToArchive:'No closed records are older than the cut-off',
+    archiveTitle:'Archive old records?', archiveBtn:'Archive',
+    archiveMsg:'{n} closed records dated before {date} will be moved to the archive. They are not deleted and can be restored any time from Admin → Archive.',
+    archivedMsg:'{n} records archived',
+    docCreated:'Document created', docUpdated:'Document updated', docDeleted:'Document deleted',
+    customerDeleted:'Customer deleted', productDeleted:'Product deleted', poDeleted:'Purchase order deleted',
+    costDeleted:'Cost entry deleted', entryDeleted:'Price entry deleted',
+    discardTitle:'Discard this document?', discardMsg:'You have unsaved changes. They will be lost if you leave this page.',
+    discard:'Discard', keepEditing:'Keep editing',
+    fixItems:'Check the items: each needs a name, a quantity of 1 or more, and a price',
+    products:'Products & Services', addProduct:'Add Product', editProductTitle:'Edit Product', unit:'Unit',
+    noProducts:'No products yet', productsHint:'Saved products appear as suggestions when you create a document.',
+    productAdded:'Product added', productUpdated:'Product updated', unitPh:'e.g. item, hour, project',
+    dateFrom:'From date', dateTo:'To date', allTypes:'All types', clearFilters:'Clear filters',
+    tryFilter2:'Nothing matches all of these filters. Try removing one.',
+    showMore:'Show more',
+    search:'Search', palettePh:'Search documents, customers, products, actions…', noResults:'No results',
+    actionsGrp:'Actions', goTo:'Go to', toggleTheme:'Toggle light / dark mode', switchLang:'เปลี่ยนเป็นภาษาไทย (Thai)',
+    paletteHint:'navigate · open · close',
+    docsCount:'Documents', totalBilled:'Total billed', newDocForCustomer:'New document for this customer',
+    noDocsYet:'No documents yet',
+    submitTitle:'Submit for approval?', approveTitle:'Approve this document?', rejectTitle:'Reject this document',
+    rejectReason:'Reason for rejection', redoTitle:'Send back to Sales for revision?', sendBack:'Send back',
+    resubmitTitle:'Mark as fixed and resubmit for approval?', resubmit:'Resubmit',
+    convertTitle:'Convert to invoice?', convertMsg:'This creates a new invoice and marks the purchase order as completed.',
+    submittedMsg:'Submitted for approval', approvedMsg:'Document approved', rejectedMsg:'Document rejected',
+    sentBackMsg:'Sent back to Sales for revision', resubmittedMsg:'Resubmitted for approval',
+    invoiceCreated:'Invoice created', notFound:'Document not found',
   },
   th: {
     dashboard:'แดชบอร์ด', bills:'เอกสาร', po:'ใบสั่งซื้อ',
@@ -86,7 +125,7 @@ const LANG = {
     costs:'ต้นทุน', cheapest:'ถูกสุด',
     view:'ดู', edit:'แก้ไข', del:'ลบ', submit:'ส่ง', pdf:'PDF',
     approve:'อนุมัติ', reject:'ปฏิเสธ',
-    addCustomer:'เพิ่มลูกค้า', addUser:'เพิ่มผู้ใช้',
+    addCustomer:'เพิ่มลูกค้า', editCustomer:'แก้ไขลูกค้า', addUser:'เพิ่มผู้ใช้',
     createUser:'สร้างผู้ใช้', saveDocument:'บันทึกเอกสาร', saveDocument2:'บันทึก',
     overview:'แดชบอร์ด', activitySummary:'ภาพรวมกิจกรรมการออกบิลของคุณ',
     totalRevenue:'รายได้รวม', vatCollected:'ภาษีที่เก็บได้',
@@ -130,6 +169,40 @@ const LANG = {
     fullName:'ชื่อ-นามสกุล', password:'รหัสผ่าน', roleLbl:'บทบาท',
     scanToOpen:'สแกนเพื่อเปิด',
     itemCol:'รายการ', qtyCol:'จำนวน', priceCol:'ราคา',
+    itemN:'รายการที่ ', updateDocument:'บันทึกการแก้ไข', editDocument:'แก้ไขเอกสาร',
+    customerPh:'พิมพ์ชื่อ หรือเลือกลูกค้าเดิม', existingCustomer:'ลูกค้าเดิม — กรอกข้อมูลให้แล้ว',
+    saveAsCustomer:'บันทึกเป็นลูกค้าใหม่', itemPh:'พิมพ์ชื่อ หรือเลือกจากรายการเดิม',
+    optionalDetail:'รายละเอียดเพิ่มเติม (ไม่บังคับ)', addressPh:'บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์', notesPh:'เงื่อนไขการชำระเงิน ข้อมูลเพิ่มเติม…',
+    undo:'เลิกทำ', restored:'กู้คืนแล้ว',
+    archiveFailed:'ย้ายรายการเข้าคลังไม่สำเร็จ ระบบจึงเก็บรายการไว้ตามเดิม กรุณาตรวจสอบว่าได้ deploy กฎฐานข้อมูลแล้ว',
+    restoreClash:'มีรายการที่ใช้รหัสนี้อยู่แล้ว', nothingToArchive:'ไม่มีรายการที่ปิดแล้วซึ่งเก่ากว่าที่กำหนด',
+    archiveTitle:'เก็บข้อมูลเก่าเข้าคลัง?', archiveBtn:'เก็บเข้าคลัง',
+    archiveMsg:'รายการที่ปิดแล้ว {n} รายการ ซึ่งลงวันที่ก่อน {date} จะถูกย้ายเข้าคลัง ข้อมูลไม่ถูกลบ และกู้คืนได้ทุกเมื่อที่ ผู้ดูแลระบบ → คลังข้อมูลเก่า',
+    archivedMsg:'เก็บเข้าคลังแล้ว {n} รายการ',
+    docCreated:'สร้างเอกสารแล้ว', docUpdated:'บันทึกการแก้ไขแล้ว', docDeleted:'ลบเอกสารแล้ว',
+    customerDeleted:'ลบลูกค้าแล้ว', productDeleted:'ลบสินค้าแล้ว', poDeleted:'ลบใบสั่งซื้อแล้ว',
+    costDeleted:'ลบรายการค่าใช้จ่ายแล้ว', entryDeleted:'ลบรายการราคาแล้ว',
+    discardTitle:'ทิ้งเอกสารนี้?', discardMsg:'มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก หากออกจากหน้านี้ข้อมูลจะหายไป',
+    discard:'ทิ้งการเปลี่ยนแปลง', keepEditing:'แก้ไขต่อ',
+    fixItems:'ตรวจสอบรายการ: ต้องมีชื่อ จำนวนอย่างน้อย 1 และราคา',
+    products:'สินค้าและบริการ', addProduct:'เพิ่มสินค้า', editProductTitle:'แก้ไขสินค้า', unit:'หน่วย',
+    noProducts:'ยังไม่มีสินค้า', productsHint:'สินค้าที่บันทึกไว้จะแสดงเป็นตัวเลือกเมื่อสร้างเอกสาร',
+    productAdded:'เพิ่มสินค้าแล้ว', productUpdated:'บันทึกสินค้าแล้ว', unitPh:'เช่น ชิ้น ชั่วโมง งาน',
+    dateFrom:'ตั้งแต่วันที่', dateTo:'ถึงวันที่', allTypes:'ทุกประเภท', clearFilters:'ล้างตัวกรอง',
+    tryFilter2:'ไม่มีรายการที่ตรงกับตัวกรองทั้งหมด ลองเอาตัวกรองออกบางตัว',
+    showMore:'แสดงเพิ่ม',
+    search:'ค้นหา', palettePh:'ค้นหาเอกสาร ลูกค้า สินค้า หรือคำสั่ง…', noResults:'ไม่พบผลลัพธ์',
+    actionsGrp:'คำสั่ง', goTo:'ไปที่', toggleTheme:'สลับโหมดสว่าง / มืด', switchLang:'Switch to English',
+    paletteHint:'เลื่อน · เปิด · ปิด',
+    docsCount:'เอกสาร', totalBilled:'ยอดรวมที่ออกบิล', newDocForCustomer:'สร้างเอกสารให้ลูกค้ารายนี้',
+    noDocsYet:'ยังไม่มีเอกสาร',
+    submitTitle:'ส่งเอกสารเพื่อขออนุมัติ?', approveTitle:'อนุมัติเอกสารนี้?', rejectTitle:'ไม่อนุมัติเอกสารนี้',
+    rejectReason:'เหตุผลที่ไม่อนุมัติ', redoTitle:'ส่งกลับให้ฝ่ายขายแก้ไข?', sendBack:'ส่งกลับ',
+    resubmitTitle:'แก้ไขแล้ว ส่งขออนุมัติอีกครั้ง?', resubmit:'ส่งอีกครั้ง',
+    convertTitle:'แปลงเป็นใบแจ้งหนี้?', convertMsg:'ระบบจะสร้างใบแจ้งหนี้ใหม่ และปิดใบสั่งซื้อนี้เป็นเสร็จสิ้น',
+    submittedMsg:'ส่งขออนุมัติแล้ว', approvedMsg:'อนุมัติเอกสารแล้ว', rejectedMsg:'ไม่อนุมัติเอกสาร',
+    sentBackMsg:'ส่งกลับให้ฝ่ายขายแก้ไขแล้ว', resubmittedMsg:'ส่งขออนุมัติอีกครั้งแล้ว',
+    invoiceCreated:'สร้างใบแจ้งหนี้แล้ว', notFound:'ไม่พบเอกสาร',
   }
 };
 function L(k){ const l = localStorage.getItem('appLang') || 'en'; return (LANG[l] && LANG[l][k]) || LANG.en[k] || k; }
@@ -202,62 +275,97 @@ function icon(name, cls){
 function renderApp() {
   document.documentElement.setAttribute('data-theme', getMode() === 'dark' ? 'dark' : 'light');
   const app = document.getElementById('app');
+  // Snapshot the document form (if open) so re-rendering never loses typed input.
+  const docSnap = currentView === 'new' ? captureDocForm() : null;
   const role  = sessionStorage.getItem('userRole') || 'sales';
   const email = sessionStorage.getItem('userEmail') || '';
   const name  = sessionStorage.getItem('userName') || email;
   const rejectedCount = quotations.filter(q => q.status === 'rejected').length;
   const showRejBadge  = (role === 'sales' || role === 'admin' || role === 'manager') && rejectedCount > 0 ? rejectedCount : 0;
 
+  const pendingCount = quotations.filter(q => q.status === 'pending').length;
+
   const canDocs = role === 'sales' || role === 'admin' || role === 'manager';
   const canOps  = canDocs || role === 'technician';
   const canUsers = role === 'admin' || role === 'manager';
+  const isAdmin = role === 'admin';
+  const th = getLang() === 'th';
+
+  // Dashboard is Admin-only — send everyone else to Documents
+  if (currentView === 'dashboard' && !isAdmin) currentView = 'bills';
+
+  // Documents badge: approvers see items awaiting them, creators see rejections
+  const docBadge = (role === 'technician' || role === 'manager' || role === 'admin')
+    ? pendingCount : showRejBadge;
+
+  const sideBrand = `
+    <div class="side-logo">
+      <span class="brand-mark">${icon('receipt','')}</span>
+      <span><span class="brand-name">Baigamgab</span> <span class="brand-sub">SmartLedger</span></span>
+    </div>`;
 
   app.innerHTML = `
     <div class="page">
-      <header class="topbar">
-        <div class="shell topbar-inner">
-          <div class="brand">
-            <span class="brand-mark">${icon('receipt','')}</span>
-            <span><span class="brand-name">Baigamgab</span> <span class="brand-sub">SmartLedger</span></span>
-          </div>
-          <div class="topbar-actions">
-            <span class="chip-user">
-              <span class="uname">${esc(name)}</span>
-              <span class="sep">·</span>
-              <b>${esc(getRoleLabel(role))}</b>
-            </span>
-            <button class="ghost-btn" onclick="toggleMode()" title="Toggle theme" aria-label="Toggle theme">
-              ${icon(getMode() === 'dark' ? 'sun' : 'moon')}
-            </button>
-            <button class="ghost-btn" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
-            <button class="ghost-btn" onclick="logout()">${icon('logout')}<span class="uname">${L('signOut')}</span></button>
-          </div>
-        </div>
-      </header>
+      <aside class="sidebar">
+        ${sideBrand}
+        <div class="nav-group">${th ? 'หลัก' : 'Main'}</div>
+        ${isAdmin ? navItem('dashboard', 'dashboard', L('dashboard')) : ''}
+        ${navItem('bills', 'bills', L('bills'), docBadge)}
+        ${canOps  ? navItem('po', 'po', L('po')) : ''}
+        ${canOps  ? navItem('materials', 'box', L('materials')) : ''}
+        ${canDocs ? navItem('customers', 'users', L('customers')) : ''}
+        ${isAdmin ? `
+          <div class="nav-group">${th ? 'ผู้ดูแลระบบ' : 'Admin'}</div>
+          ${navItem('users', 'shield', th ? 'ทีมงานและสิทธิ์' : 'Team & Roles', 0, 'team')}
+          ${navItem('users', 'building', th ? 'ข้อมูลบริษัท' : 'Company', 0, 'company')}
+          ${navItem('users', 'receipt', th ? 'บันทึกการใช้งาน' : 'Audit Log', 0, 'audit')}
+          ${navItem('users', 'box', th ? 'คลังข้อมูลเก่า' : 'Archive', 0, 'archive')}
+        ` : (canUsers ? `
+          <div class="nav-group">${th ? 'ผู้ดูแลระบบ' : 'Admin'}</div>
+          ${navItem('users', 'shield', L('manageUsers'))}
+        ` : '')}
+        <div class="side-spacer"></div>
+      </aside>
 
-      <nav class="tabs">
-        <div class="shell tabs-inner">
-          ${tab('dashboard', L('dashboard'))}
-          ${tab('bills', L('bills'), showRejBadge)}
-          ${canOps  ? tab('po', L('po')) : ''}
-          ${canOps  ? tab('materials', L('materials')) : ''}
-          ${canDocs ? tab('customers', L('customers')) : ''}
-          ${canDocs ? tab('new', L('newDoc')) : ''}
-          ${canUsers ? tab('users', L('manageUsers')) : ''}
-        </div>
-      </nav>
+      <div class="main-col">
+        <header class="topbar">
+          <div class="shell topbar-inner">
+            <div class="brand">
+              <span class="brand-mark">${icon('receipt','')}</span>
+              <span><span class="brand-name">Baigamgab</span> <span class="brand-sub">SmartLedger</span></span>
+            </div>
+            <div class="topbar-actions">
+              <button class="ghost-btn" onclick="openPalette()" aria-label="${L('search')}" title="${L('search')} (${isMac() ? '⌘' : 'Ctrl'} K)">
+                ${icon('search')}<span class="uname">${L('search')}</span><kbd class="kbd-hint">${isMac() ? '⌘' : 'Ctrl'} K</kbd>
+              </button>
+              <span class="chip-user">
+                <span class="uname">${esc(name)}</span>
+                <span class="sep">·</span>
+                <b>${esc(getRoleLabel(role))}</b>
+              </span>
+              <button class="ghost-btn" onclick="toggleMode()" title="Toggle theme" aria-label="Toggle theme">
+                ${icon(getMode() === 'dark' ? 'sun' : 'moon')}
+              </button>
+              <button class="ghost-btn" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
+              <button class="ghost-btn" onclick="logout()">${icon('logout')}<span class="uname">${L('signOut')}</span></button>
+            </div>
+          </div>
+        </header>
 
-      <main class="shell">
-        <div class="view">${renderContent()}</div>
-      </main>
+        <main class="shell">
+          <div class="view">${renderContent()}</div>
+        </main>
+      </div>
 
       <nav class="tabbar">
-        ${bottomTab('dashboard','dashboard',L('dashboard'))}
+        ${isAdmin ? bottomTab('dashboard','dashboard',L('dashboard')) : ''}
         ${bottomTab('bills','bills',L('bills'))}
         ${canDocs ? bottomTab('customers','users',L('customers')) : bottomTab('po','po',L('po'))}
         ${canDocs ? bottomTab('new','plus',L('newDoc')) : bottomTab('materials','box',L('materials'))}
+        ${canUsers && !isAdmin ? bottomTab('users','shield',L('manageUsers')) : ''}
       </nav>
     </div>`;
+  if (docSnap) fillDocForm(docSnap);
 }
 
 function tab(view, label, badge) {
@@ -265,25 +373,41 @@ function tab(view, label, badge) {
   const b = badge > 0 ? `<span class="tab-badge">${badge}</span>` : '';
   return `<button class="tab" ${cur ? 'aria-current="page"' : ''} onclick="switchView('${view}')">${esc(label)}${b}</button>`;
 }
+
+function navItem(view, ico, label, badge, adminSub) {
+  const cur = adminSub
+    ? (currentView === 'users' && (adminTab || 'team') === adminSub)
+    : (view === 'users' ? currentView === 'users' : currentView === view);
+  const b = badge > 0 ? `<span class="tab-badge">${badge}</span>` : '';
+  const onclick = adminSub ? `switchAdminTab('${adminSub}')` : `switchView('${view}')`;
+  return `<button class="nav-item" ${cur ? 'aria-current="page"' : ''} onclick="${onclick}">${icon(ico)}<span>${esc(label)}</span>${b}</button>`;
+}
+
+async function switchAdminTab(t) {
+  if (!(await confirmLeaveDocForm())) return;
+  if (currentView === 'new') resetDocFormState();
+  adminTab = t; currentView = 'users'; renderApp();
+}
 function bottomTab(view, ico, label) {
   const cur = currentView === view;
   return `<a href="#" ${cur ? 'aria-current="page"' : ''} onclick="event.preventDefault();switchView('${view}')">${icon(ico)}<span>${esc(label)}</span></a>`;
 }
 
 function renderContent() {
+  const role = sessionStorage.getItem('userRole') || 'sales';
   const html = (() => {
     switch (currentView) {
-      case 'dashboard': return renderDashboard();
+      case 'dashboard': return role === 'admin' ? renderDashboard() : renderBillsView();
       case 'bills':     return renderBillsView();
       case 'customers': return renderCustomersView();
       case 'new':       return renderNewQuotation();
       case 'users':     return renderUsersView();
       case 'po':        return renderPOView();
       case 'materials': return renderMaterialsView();
-      default:          return renderDashboard();
+      default:          return renderBillsView();
     }
   })();
-  if (currentView === 'users') setTimeout(() => adminLoadUsers(), 60);
+  if (currentView === 'users' && (adminTab || 'team') === 'team') setTimeout(() => adminLoadUsers(), 60);
   return html;
 }
 
@@ -291,78 +415,170 @@ function renderContent() {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════
 function renderDashboard() {
-  const total    = quotations.reduce((s, q) => s + (q.total || 0), 0);
-  const totalTax = quotations.reduce((s, q) => s + (q.tax || 0), 0);
-  const approved = quotations.filter(q => q.status === 'approved').length;
-  const pending  = quotations.filter(q => q.status === 'pending').length;
-  const rejected = quotations.filter(q => q.status === 'rejected').length;
+  const th = getLang() === 'th';
+  const total = quotations.reduce((s, q) => s + (q.total || 0), 0);
+  const vat   = quotations.reduce((s, q) => s + (q.tax || 0), 0);
+  const c = {
+    draft:    quotations.filter(q => q.status === 'draft').length,
+    pending:  quotations.filter(q => q.status === 'pending').length,
+    approved: quotations.filter(q => q.status === 'approved').length,
+    rejected: quotations.filter(q => q.status === 'rejected').length,
+  };
+  const totalDocs = quotations.length;
+  const submitted = c.pending + c.approved + c.rejected;
+  const decided   = c.approved + c.rejected;
+  const approvalRate = decided ? Math.round(c.approved / decided * 100) : 0;
 
   const monthly = {};
   quotations.forEach(q => { const m = (q.date || '').substring(0, 7); if (m) monthly[m] = (monthly[m] || 0) + (q.total || 0); });
-  const months = Object.entries(monthly).sort((a, b) => a[0] < b[0] ? 1 : -1).slice(0, 6).reverse();
-  const maxM = Math.max(...months.map(m => m[1]), 1);
+  const months = Object.keys(monthly).sort().slice(-6).map(m => ({ label: monthLabel(m, th), value: monthly[m] }));
 
   return `
     <div class="view-head">
-      <div>
-        <h1>${L('overview')}</h1>
-        <p>${L('activitySummary')}</p>
-      </div>
+      <div><h1>${L('overview')}</h1><p>${L('activitySummary')}</p></div>
     </div>
 
-    <div class="stat-grid">
-      ${stat(L('totalRevenue'), baht(total), 'var(--brand)')}
-      ${stat(L('approvedCount'), approved, 'var(--st-approved)')}
-      ${stat(L('pendingCount'), pending, 'var(--st-pending)')}
-      ${stat(L('rejectedCount'), rejected, 'var(--st-rejected)')}
+    <div class="kpi-grid">
+      ${kpi(L('totalRevenue'), baht(total), 'var(--brand)', (th ? 'จาก ' : 'across ') + totalDocs + (th ? ' เอกสาร' : ' documents'))}
+      ${kpi(L('pendingCount'), c.pending, 'var(--st-pending)', th ? 'รอตรวจสอบ' : 'awaiting review', c.pending ? 'up' : 'flat')}
+      ${kpi(L('approvedCount'), c.approved, 'var(--st-approved)', (th ? 'อัตราอนุมัติ ' : 'approval rate ') + approvalRate + '%')}
+      ${kpi(L('vatCollected'), baht(vat), 'var(--accent)', th ? 'ภาษีขาย 7%' : 'output VAT 7%')}
     </div>
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-head"><span class="card-title">${L('taxSummary')}</span></div>
-        <div class="card-pad stack">
-          ${kv(L('subtotal'), baht(total - totalTax))}
-          ${kv(L('vatCollected'), baht(totalTax), 'var(--accent)')}
-          <div class="spread" style="background:var(--brand);color:var(--brand-ink);border-radius:8px;padding:10px 12px;margin-top:4px;">
-            <span style="color:var(--brand-ink-2);font-size:var(--t-meta);">${L('grandTotal')}</span>
-            <b class="tnum" style="font-size:var(--t-sm);">${baht(total)}</b>
-          </div>
+        <div class="card-head"><span class="card-title">${L('monthlyRevenue')}</span><span class="cell-sub">${th ? 'พันบาท' : 'THB ×1,000'}</span></div>
+        <div class="card-pad">${months.length ? barChartSVG(months) : `<p class="muted" style="font-size:var(--t-meta);">${th ? 'ยังไม่มีข้อมูลรายได้' : 'No revenue recorded yet.'}</p>`}</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">${th ? 'สถานะเอกสาร' : 'Document status'}</span><span class="cell-sub">${totalDocs}</span></div>
+        <div class="card-pad">${donutChartSVG([
+          { label: L('approved'), value: c.approved, color: 'var(--st-approved)' },
+          { label: L('pending'),  value: c.pending,  color: 'var(--st-pending)' },
+          { label: L('draft'),    value: c.draft,    color: 'var(--st-draft)' },
+          { label: L('rejected'), value: c.rejected, color: 'var(--st-rejected)' },
+        ], totalDocs, th ? 'เอกสาร' : 'docs')}</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">${L('recentDocs')}</span>
+          <button class="act act-primary" onclick="switchView('bills')">${L('viewAll')} ${icon('arrowR','')}</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table" style="min-width:520px;">
+            <thead><tr><th>${th ? 'เลขที่' : 'Document'}</th><th>${L('customer2')}</th><th class="num">${L('total')}</th><th>${L('statusCol')}</th></tr></thead>
+            <tbody>${quotations.slice(0, 6).map(q => `
+              <tr onclick="viewQuotation('${q.id}')" style="cursor:pointer;">
+                <td style="white-space:nowrap;"><div class="cell-strong">${esc(q.id)}</div><div class="cell-sub">${esc(q.date)}</div></td>
+                <td class="muted">${esc(q.customer)}</td>
+                <td class="num cell-strong tnum">${baht(q.total)}</td>
+                <td>${getStatusPill(q.status)}</td>
+              </tr>`).join('') || `<tr><td colspan="4">${emptyBody(L('noDocuments'), '')}</td></tr>`}</tbody>
+          </table>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><span class="card-title">${L('monthlyRevenue')}</span></div>
-        <div class="card-pad stack">
-          ${months.length ? months.map(([m, a]) => `
-            <div>
-              <div class="spread" style="margin-bottom:4px;">
-                <span style="font-size:var(--t-micro);color:var(--ink-3);">${m}</span>
-                <span class="tnum" style="font-size:var(--t-micro);color:var(--accent);font-weight:600;">฿${fmtInt(a)}</span>
-              </div>
-              <div class="meter"><i style="width:${(a / maxM * 100).toFixed(1)}%"></i></div>
-            </div>`).join('') : `<p class="muted" style="font-size:var(--t-meta);">No revenue recorded yet.</p>`}
+        <div class="card-head"><span class="card-title">${th ? 'ช่องทางการอนุมัติ' : 'Approval funnel'}</span></div>
+        <div class="card-pad">
+          <div class="funnel">
+            ${funnelRow(th ? 'สร้างเอกสาร' : 'Created', totalDocs, totalDocs)}
+            ${funnelRow(th ? 'ส่งตรวจสอบ' : 'Submitted', submitted, totalDocs)}
+            ${funnelRow(th ? 'อนุมัติแล้ว' : 'Approved', c.approved, totalDocs, 'var(--st-approved)')}
+          </div>
+          <p class="muted" style="font-size:var(--t-micro);margin-top:12px;">
+            ${th ? `ปฏิเสธ ${c.rejected} · ร่าง ${c.draft}` : `${c.rejected} rejected · ${c.draft} draft`}
+          </p>
         </div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">${L('recentDocs')}</span>
-        <button class="act act-primary" onclick="switchView('bills')">${L('viewAll')} ${icon('arrowR','')}</button>
-      </div>
-      ${quotations.length ? quotations.slice(0, 6).map(q => `
-        <div class="row">
-          <span class="row-ico" style="color:${statusColor(q.status)};background:${statusWash(q.status)};">${icon(q.status === 'approved' ? 'check' : q.status === 'rejected' ? 'x' : 'dot','')}</span>
-          <div class="row-main">
-            <div class="t">${esc(q.customer)}</div>
-            <div class="s">${esc(q.id)} · ${esc(q.date)}</div>
-          </div>
-          <div class="row-end">
-            <div class="tnum" style="font-weight:600;font-size:var(--t-sm);">${baht(q.total)}</div>
-            <div style="margin-top:3px;">${getStatusPill(q.status)}</div>
-          </div>
-        </div>`).join('') : emptyBody(L('noDocuments'), '')}
     </div>`;
+}
+
+function kpi(label, value, accent, sub, dir) {
+  return `<div class="kpi" style="--kpi-accent:${accent};">
+    <div class="kpi-l">${esc(label)}</div>
+    <div class="kpi-v tnum">${value}</div>
+    ${sub ? `<div class="kpi-d ${dir || 'flat'}">${esc(sub)}</div>` : ''}
+  </div>`;
+}
+
+function monthLabel(ym, th) {
+  const m = Number(ym.split('-')[1]);
+  const en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const tha = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return (th ? tha : en)[m - 1] || ym;
+}
+
+function niceCeil(v) {
+  if (v <= 0) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  const step = n <= 1 ? 1 : n <= 1.5 ? 1.5 : n <= 2 ? 2 : n <= 2.5 ? 2.5
+             : n <= 3 ? 3 : n <= 4 ? 4 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10;
+  return step * mag;
+}
+
+function barChartSVG(data) {
+  const W = 520, H = 240, padL = 46, padR = 12, padT = 16, padB = 30;
+  const x0 = padL, x1 = W - padR, y0 = padT, y1 = H - padB;
+  const top = niceCeil(Math.max(...data.map(d => d.value), 1));
+  const y = v => y1 - (v / top) * (y1 - y0);
+  const slot = (x1 - x0) / data.length;
+  const bw = Math.min(46, slot * 0.58);
+  const fmtK = v => (v >= 1000 ? fmtInt(v / 1000) + 'k' : fmtInt(v));
+  const grid = [0, top / 2, top].map(t => `
+    <line x1="${x0}" y1="${y(t).toFixed(1)}" x2="${x1}" y2="${y(t).toFixed(1)}" stroke="var(--line-2)" stroke-width="1"/>
+    <text x="${x0 - 6}" y="${(y(t) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--ink-3)">${fmtK(t)}</text>`).join('');
+  const bars = data.map((d, i) => {
+    const cx = x0 + i * slot + slot / 2;
+    const h = Math.max(y1 - y(d.value), 0);
+    const last = i === data.length - 1;
+    return `
+      <rect x="${(cx - bw / 2).toFixed(1)}" y="${y(d.value).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="var(--accent)" fill-opacity="${last ? '1' : '0.32'}"/>
+      <text x="${cx.toFixed(1)}" y="${(y(d.value) - 6).toFixed(1)}" text-anchor="middle" font-size="10" fill="${last ? 'var(--ink)' : 'var(--ink-3)'}" font-weight="${last ? '700' : '400'}">${fmtInt(d.value / 1000)}</text>
+      <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="${last ? 'var(--ink)' : 'var(--ink-3)'}" font-weight="${last ? '700' : '400'}">${esc(d.label)}</text>`;
+  }).join('');
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${getLang() === 'th' ? 'กราฟรายได้รายเดือน' : 'Monthly revenue bar chart'}">
+    ${grid}
+    <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="var(--line-3)" stroke-width="1"/>
+    ${bars}
+  </svg>`;
+}
+
+function donutChartSVG(segments, total, centerLabel) {
+  const r = 52, sw = 20, cx = 80, cy = 80;
+  const circ = 2 * Math.PI * r;
+  const sum = segments.reduce((s, x) => s + x.value, 0) || 1;
+  let acc = 0;
+  const arcs = segments.filter(s => s.value > 0).map(s => {
+    const len = s.value / sum * circ;
+    const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+    acc += len;
+    return seg;
+  }).join('');
+  const legend = segments.map(s => `
+    <div class="li"><span class="dot" style="background:${s.color};"></span>${esc(s.label)}
+      <b class="tnum">${s.value}</b><span class="pct">${Math.round(s.value / sum * 100)}%</span></div>`).join('');
+  return `<div class="donut-wrap">
+    <svg class="donut-svg" viewBox="0 0 160 160" role="img" aria-label="${getLang() === 'th' ? 'สัดส่วนสถานะเอกสาร' : 'Document status breakdown'}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="${sw}"/>
+      <g transform="rotate(-90 ${cx} ${cy})">${arcs}</g>
+      <text x="${cx}" y="${cy - 1}" text-anchor="middle" font-size="22" font-weight="700" fill="var(--ink)">${total}</text>
+      <text x="${cx}" y="${cy + 15}" text-anchor="middle" font-size="10" fill="var(--ink-3)">${esc(centerLabel)}</text>
+    </svg>
+    <div class="donut-legend">${legend}</div>
+  </div>`;
+}
+
+function funnelRow(label, value, base, color) {
+  const pct = base ? (value / base * 100) : 0;
+  return `<div>
+    <div class="fn-top"><span>${esc(label)}</span><b>${value}</b></div>
+    <div class="fn-bar" style="width:${Math.max(pct, 6).toFixed(1)}%;${color ? `background:${color};` : ''}">${Math.round(pct)}%</div>
+  </div>`;
 }
 
 function stat(label, value, accent, sub) {
@@ -384,55 +600,213 @@ function statusWash(s){ return { draft:'var(--st-draft-wash)', pending:'var(--st
 // ═══════════════════════════════════════════════════════════════
 // DOCUMENTS (bills)
 // ═══════════════════════════════════════════════════════════════
-function renderBillsView() {
-  let filtered = statusFilter === 'all' ? quotations : quotations.filter(q => q.status === statusFilter);
-  if (searchQuery.trim()) {
-    const s = searchQuery.trim().toLowerCase();
-    filtered = filtered.filter(d =>
+// Every filter narrows the same list (AND): status chip, customer, date range,
+// document type and the search box can all be used together.
+// withStatus/withText=false skip the status chip / search box, so the chips and
+// header can show counts that don't go stale while the user types.
+function billsFiltered(withStatus = true, withText = true) {
+  const f = listFilters.bills;
+  const s = withText ? searchQuery.trim().toLowerCase() : '';
+  return quotations.filter(d =>
+    (!withStatus || statusFilter === 'all' || d.status === statusFilter) &&
+    (!f.name || d.customer === f.name) &&
+    (!f.docType || d.docType === f.docType) &&
+    inDateRange(d.date, f) &&
+    (!s ||
       d.id.toLowerCase().includes(s) ||
       (d.customer || '').toLowerCase().includes(s) ||
+      (d.customerEmail || '').toLowerCase().includes(s) ||
       (d.taxId && d.taxId.toLowerCase().includes(s)) ||
-      d.items.some(i => (i.name || '').toLowerCase().includes(s)));
-  }
+      d.items.some(i => (i.name || '').toLowerCase().includes(s))));
+}
+
+// Only the first `billsLimit` rows are drawn; "Show more" adds another page.
+// Filtering 20,000 documents takes a few ms, but drawing them all takes seconds,
+// so paging keeps the screen fast however large the data grows.
+const PAGE_SIZE = 100;
+let billsLimit = PAGE_SIZE;
+
+function billsResultsHTML() {
+  const list = billsFiltered();
+  const shown = Math.min(list.length, billsLimit);
+  const more = list.length > shown
+    ? `<div style="text-align:center;margin-top:12px;"><button class="btn btn-secondary" onclick="showMoreBills()">${L('showMore')} <span class="muted">(${shown} / ${list.length})</span></button></div>`
+    : '';
+  return resultCount('bills', list.length) + (billViewMode === 'list' ? renderBillsList(list.slice(0, shown)) : renderBillsGrouped(list, shown)) + more;
+}
+function showMoreBills() {
+  billsLimit += PAGE_SIZE;
+  const host = document.getElementById('searchResults');
+  if (host) host.innerHTML = billsResultsHTML(); else renderApp();
+}
+
+// CSV of exactly what the filters show. Quoted fields + BOM so Excel opens Thai text correctly.
+function exportFilteredCSV() {
+  const list = billsFiltered();
+  if (!list.length) { showNotification('⚠️ ' + L('noDocuments')); return; }
+  const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['ID', 'Date', 'Type', 'Customer', 'Tax ID', 'Items', 'Subtotal', 'VAT', 'Total', 'Status'];
+  const rows = list.map(q => [q.id, q.date, getDocTypeLabel(q.docType), q.customer, q.taxId,
+    q.items.map(i => `${i.name} (${i.qty} x ${i.price})`).join('; '), q.subtotal, q.tax, q.total, q.status].map(cell).join(','));
+  const blob = new Blob(['\ufeff' + [head.join(','), ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `documents_${localDateISO()}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  showNotification('✅ CSV exported', { detail: `${list.length} ${list.length === 1 ? 'document' : 'documents'}` });
+}
+
+function renderBillsView() {
+  const scoped = billsFiltered(true, false);
+  const facet = billsFiltered(false, false);
   const c = {
-    all: quotations.length,
-    draft: quotations.filter(q => q.status === 'draft').length,
-    pending: quotations.filter(q => q.status === 'pending').length,
-    approved: quotations.filter(q => q.status === 'approved').length,
-    rejected: quotations.filter(q => q.status === 'rejected').length,
+    all: facet.length,
+    draft: facet.filter(q => q.status === 'draft').length,
+    pending: facet.filter(q => q.status === 'pending').length,
+    approved: facet.filter(q => q.status === 'approved').length,
+    rejected: facet.filter(q => q.status === 'rejected').length,
   };
+
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  const canCreate = role === 'sales' || role === 'admin' || role === 'manager';
+  const th = getLang() === 'th';
 
   return `
     <div class="view-head">
-      <div><h1>${L('bills')}</h1><p>${filtered.length} ${filtered.length === 1 ? 'document' : 'documents'}</p></div>
+      <div><h1>${L('bills')}</h1><p>${scoped.length} ${th ? 'เอกสาร' : (scoped.length === 1 ? 'document' : 'documents')}</p></div>
+      ${canCreate ? `<button class="btn btn-primary" onclick="switchView('new')">${icon('plus')}${L('newDoc')}</button>` : ''}
     </div>
 
     <div class="card card-pad stack">
       <div class="spread" style="flex-wrap:wrap;">
-        <div class="seg">
-          ${seg('list', L('listView'))}${seg('date', L('byDate'))}${seg('customer', L('byCustomer'))}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div class="seg">
+            ${seg('list', L('listView'))}${seg('date', L('byDate'))}${seg('customer', L('byCustomer'))}
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="exportFilteredCSV()" title="${th ? 'ส่งออกรายการที่กรองเป็น CSV' : 'Export the filtered list as CSV'}">${icon('download', '')}CSV</button>
         </div>
         <div class="chips">
           ${chip('all', L('allFilter'), c.all)}${chip('draft', L('draft'), c.draft)}${chip('pending', L('pending'), c.pending)}${chip('approved', L('approved'), c.approved)}${chip('rejected', L('rejected'), c.rejected)}
         </div>
       </div>
-      <div class="search-wrap">
-        ${icon('search','')}
-        <input class="input input-search" type="text" placeholder="Search by ID, customer, item…" value="${esc(searchQuery)}"
-          oninput="searchQuery=this.value;renderApp()">
-        ${searchQuery ? `<button class="search-clear" onclick="searchQuery='';renderApp()">${icon('x','')}</button>` : ''}
-      </div>
-      ${searchQuery ? `<div style="font-size:var(--t-micro);color:var(--ink-3);">${filtered.length} result${filtered.length === 1 ? '' : 's'} for “${esc(searchQuery)}”</div>` : ''}
+      ${searchBox('bills', th ? 'ค้นหาด้วยเลขที่ ลูกค้า หรือรายการ…' : 'Search by ID, customer, item…')}
+      ${filterBar('bills', L('customer2'), quotations.map(q => q.customer), `
+        <label class="field"><span class="field-label">${L('docType')}</span>
+          <select class="select" onchange="setListFilter('bills','docType',this.value)">
+            <option value="">${L('allTypes')}</option>
+            ${['bill', 'invoice', 'tax-invoice'].map(v => `<option value="${v}" ${listFilters.bills.docType === v ? 'selected' : ''}>${esc(getDocTypeLabel(v))}</option>`).join('')}
+          </select>
+        </label>`)}
     </div>
 
-    ${billViewMode === 'list' ? renderBillsList(filtered) : renderBillsGrouped(filtered)}`;
+    <div id="searchResults">${billsResultsHTML()}</div>`;
+}
+
+// ── COMBINED FILTERS ──────────────────────────────────────────
+// Name + date range (+ any extra selects) shared by Documents, POs and Materials.
+// Changing a filter re-renders the view; the search box keeps its own state.
+function inDateRange(date, f) {
+  let { from, to } = f;
+  if (from && to && from > to) [from, to] = [to, from];  // forgive a reversed range
+  return (!from || (date || '') >= from) && (!to || (date || '') <= to);  // ISO dates compare as strings
+}
+function filtersActive(key) {
+  return Object.values(listFilters[key]).some(Boolean);
+}
+function setListFilter(key, field, value) {
+  listFilters[key][field] = value;
+  billsLimit = PAGE_SIZE;
+  renderApp();
+}
+function clearListFilters(key) {
+  Object.keys(listFilters[key]).forEach(k => { listFilters[key][k] = ''; });
+  billsLimit = PAGE_SIZE;
+  renderApp();
+}
+function filterBar(key, nameLabel, names, extra = '') {
+  const f = listFilters[key];
+  const opts = [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+  return `
+    <div class="filters">
+      <label class="field"><span class="field-label">${esc(nameLabel)}</span>
+        <select class="select" onchange="setListFilter('${key}','name',this.value)">
+          <option value="">${L('allFilter')}</option>
+          ${opts.map(n => `<option value="${esc(n)}" ${f.name === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field"><span class="field-label">${L('dateFrom')}</span>
+        <input type="date" class="input" value="${esc(f.from)}" onchange="setListFilter('${key}','from',this.value)">
+      </label>
+      <label class="field"><span class="field-label">${L('dateTo')}</span>
+        <input type="date" class="input" value="${esc(f.to)}" onchange="setListFilter('${key}','to',this.value)">
+      </label>
+      ${extra}
+      ${filtersActive(key) ? `<button class="btn btn-secondary btn-sm filters-clear" onclick="clearListFilters('${key}')">${icon('x', '')}${L('clearFilters')}</button>` : ''}
+    </div>`;
+}
+// "3 results · Customer + date range" — shown whenever search text or a filter narrows the list.
+function resultCount(key, n) {
+  const th = getLang() === 'th';
+  const s = getSearch(key).trim();
+  const f = listFilters[key];
+  const parts = [];
+  if (s) parts.push(`“${esc(s)}”`);
+  if (f.name) parts.push(esc(f.name));
+  if (f.from || f.to) parts.push(`${esc(f.from || '…')} → ${esc(f.to || '…')}`);
+  if (f.docType) parts.push(esc(getDocTypeLabel(f.docType)));
+  if (!parts.length) return '';
+  return `<div style="font-size:var(--t-micro);color:var(--ink-3);margin-bottom:8px;">${n} ${th ? 'ผลลัพธ์' : (n === 1 ? 'result' : 'results')} · ${parts.join(' + ')}</div>`;
 }
 
 function seg(mode, label) {
   return `<button aria-pressed="${billViewMode === mode}" onclick="billViewMode='${mode}';renderApp()">${esc(label)}</button>`;
 }
 function chip(val, label, n) {
-  return `<button class="chip" aria-pressed="${statusFilter === val}" onclick="statusFilter='${val}';renderApp()">${esc(label)} <span class="n">${n}</span></button>`;
+  return `<button class="chip" aria-pressed="${statusFilter === val}" onclick="statusFilter='${val}';billsLimit=PAGE_SIZE;renderApp()">${esc(label)} <span class="n">${n}</span></button>`;
+}
+
+// ── LIVE SEARCH ───────────────────────────────────────────────
+// Typing must not rebuild the whole page — that flashes the layout and
+// drops focus on every keystroke. Instead we update only #searchResults
+// in place and leave the input untouched.
+function setSearch(key, val) {
+  if (key === 'bills') searchQuery = val;
+  else if (key === 'po') poSearchQuery = val;
+  else if (key === 'mat') matSearchQuery = val;
+}
+function getSearch(key) {
+  return key === 'bills' ? searchQuery : key === 'po' ? poSearchQuery : matSearchQuery;
+}
+function searchResultsHTML(key) {
+  return key === 'bills' ? billsResultsHTML()
+    : key === 'po' ? poResultsHTML()
+    : key === 'mat' ? matResultsHTML() : '';
+}
+function onSearch(el, key) {
+  setSearch(key, el.value);
+  if (key === 'bills') billsLimit = PAGE_SIZE;
+  const btn = document.querySelector('[data-search-clear="' + key + '"]');
+  if (btn) btn.classList.toggle('hidden', !el.value);
+  const host = document.getElementById('searchResults');
+  if (host) host.innerHTML = searchResultsHTML(key);
+  else renderApp();
+}
+function clearSearch(key) {
+  setSearch(key, '');
+  const input = document.querySelector('input[data-search="' + key + '"]');
+  if (input) { input.value = ''; onSearch(input, key); input.focus(); }
+  else renderApp();
+}
+function searchBox(key, placeholder) {
+  const val = getSearch(key);
+  return `
+    <div class="search-wrap">
+      ${icon('search', '')}
+      <input class="input input-search" type="text" data-search="${key}" placeholder="${esc(placeholder)}" value="${esc(val)}"
+        oninput="onSearch(this,'${key}')">
+      <button class="search-clear${val ? '' : ' hidden'}" data-search-clear="${key}" onclick="clearSearch('${key}')" aria-label="Clear search">${icon('x', '')}</button>
+    </div>`;
 }
 
 function renderBillsList(list) {
@@ -447,7 +821,7 @@ function renderBillsList(list) {
         </tr></thead>
         <tbody>${list.map(q => `
           <tr>
-            <td><div class="cell-strong">${esc(q.id)}</div><div class="cell-accent">${esc(q.date)}</div></td>
+            <td style="white-space:nowrap;"><div class="cell-strong">${esc(q.id)}</div><div class="cell-accent">${esc(q.date)}</div></td>
             <td>${getDocTypeBadge(q.docType)}</td>
             <td><div class="cell-strong">${esc(q.customer)}</div>${q.customerEmail ? `<div class="cell-sub">${esc(q.customerEmail)}</div>` : ''}</td>
             <td class="muted">${q.items.length} item${q.items.length === 1 ? '' : 's'}</td>
@@ -460,12 +834,15 @@ function renderBillsList(list) {
   </div>`;
 }
 
-function renderBillsGrouped(list) {
+function renderBillsGrouped(list, limit = Infinity) {
   if (!list.length) return emptyState(L('noDocuments'), L('tryFilter'), 'bills');
   const gk = billViewMode === 'date' ? 'date' : 'customer';
   const grouped = {};
   list.forEach(q => { const k = q[gk] || '—'; (grouped[k] = grouped[k] || []).push(q); });
-  return `<div class="stack">${Object.entries(grouped).map(([key, items]) => {
+  // Group totals use every document; only whole groups are drawn until `limit` rows are on screen.
+  let drawn = 0;
+  const groups = Object.entries(grouped).filter(([, items]) => { const take = drawn === 0 || drawn + items.length <= limit; if (take) drawn += items.length; return take; });
+  return `<div class="stack">${groups.map(([key, items]) => {
     const tot = items.reduce((s, q) => s + q.total, 0);
     const tax = items.reduce((s, q) => s + q.tax, 0);
     return `
@@ -525,7 +902,8 @@ function renderCustomersView() {
             </tr>`).join('')}</tbody>
         </table>
       </div>
-    </div>`}`;
+    </div>`}
+    ${renderProductsPanel()}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -539,19 +917,21 @@ function renderNewQuotation() {
       <h3>${L('techView')}</h3>
     </div></div>`;
   }
+  const editing = !!editingQuotationId;
   const dt = (val, t, s) => `
-    <div class="dt-opt${val === 'bill' ? ' is-on' : ''}" id="dtc-${val}" onclick="selectDocType('${val}')">
+    <div class="dt-opt${val === 'bill' ? ' is-on' : ''}" id="dtc-${val}" onclick="selectDocType('${val}');markDocDirty()">
       <input type="radio" name="docType" value="${val}" ${val === 'bill' ? 'checked' : ''} style="display:none;">
       <div class="dt-t">${t}</div><div class="dt-s">${s}</div>
     </div>`;
 
   return `
-  <div style="max-width:820px;margin:0 auto;width:100%;">
+  <div style="max-width:820px;margin:0 auto;width:100%;" class="stack">
+    <button class="act act-primary" style="align-self:flex-start;" onclick="switchView('bills')">← ${L('bills')}</button>
     <div class="card">
       <div class="sheet-head" style="border-radius:var(--r-card) var(--r-card) 0 0;">
-        <div><div class="k">${L('documentType')}</div><div class="h">${L('newDoc')}</div></div>
+        <div><div class="k">${editing ? esc(editingQuotationId) : L('bills')}</div><div class="h">${L(editing ? 'editDocument' : 'newDoc')}</div></div>
       </div>
-      <form onsubmit="submitQuotation(event)" class="sheet-body">
+      <form id="docForm" onsubmit="submitQuotation(event)" oninput="markDocDirty(event)" onchange="markDocDirty(event)" class="sheet-body">
         <div class="field">
           <span class="field-label">${L('documentType')}</span>
           <div class="doctype" id="docTypeGroup">
@@ -561,31 +941,36 @@ function renderNewQuotation() {
           </div>
         </div>
 
+        <div class="field" style="max-width:240px;">
+          <span class="field-label">${L('date')}</span>
+          <input type="date" id="docDate" class="input" value="${localDateISO()}" required>
+        </div>
+
         <div class="fieldset">
           <h3>${L('customerInfo')}</h3>
-          <div class="field">
-            <span class="field-label">${L('selectCustomer')}</span>
-            <select id="customerSelect" class="select" onchange="fillCustomerInfo()" required>
-              <option value="">— ${L('selectCustomer')} —</option>
-              ${customers.map(c => `<option value="${c.id}">${esc(c.name)}${c.email ? ' (' + esc(c.email) + ')' : ''}</option>`).join('')}
-              <option value="__new__">+ ${L('addCustomer')}</option>
-            </select>
-          </div>
-          <div id="manualCustomerFields" class="hidden">
-            <div class="notice" style="margin-bottom:10px;">${L('manualEntry')}</div>
-            <div class="grid-2">
-              <div class="field"><span class="field-label">${L('nameStar')}</span><input type="text" id="customerName" class="input" placeholder="${L('nameStar')}"></div>
-              <div class="field"><span class="field-label">${L('email')}</span><input type="email" id="customerEmail" class="input" placeholder="email@example.com"></div>
+          <div class="grid-2">
+            <div class="field">
+              <span class="field-label">${L('customer2')} *</span>
+              <input type="text" id="customerName" class="input" list="customerSuggestions" autocomplete="off" required
+                placeholder="${esc(L('customerPh'))}" oninput="fillCustomerInfo(this)">
+              <div id="customerHint" class="field-hint"></div>
             </div>
+            <div class="field"><span class="field-label">${L('email')}</span><input type="email" id="customerEmail" class="input" placeholder="email@example.com"></div>
           </div>
+          <datalist id="customerSuggestions">
+            ${customers.map(c => `<option value="${esc(c.name)}">${esc([c.email, c.taxId].filter(Boolean).join(' · '))}</option>`).join('')}
+          </datalist>
           <div class="field hidden" id="taxIdField"><span class="field-label">${L('taxId')}</span><input type="text" id="taxId" class="input" placeholder="0-1234-56789-01-2"></div>
-          <div class="field"><span class="field-label">${L('address')}</span><textarea id="customerAddress" rows="2" class="textarea" placeholder="Street, City, Postal Code"></textarea></div>
+          <div class="field"><span class="field-label">${L('address')}</span><textarea id="customerAddress" rows="2" class="textarea" placeholder="${esc(L('addressPh'))}"></textarea></div>
         </div>
 
         <div class="fieldset">
           <div class="spread"><h3>${L('itemsServices')}</h3>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="addItemRow()">${icon('plus')}${L('addItem')}</button></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addItemRow();markDocDirty()">${icon('plus')}${L('addItem')}</button></div>
           <div id="itemsList" class="stack">${itemRowMarkup(1)}</div>
+          <datalist id="itemSuggestions">
+            ${itemSuggestions().map(s => `<option value="${esc(s.name)}">${s.price != null ? '฿' + fmt(s.price) : ''}${s.description ? ' · ' + esc(s.description) : ''}</option>`).join('')}
+          </datalist>
         </div>
 
         <div class="fieldset" style="background:var(--surface-2);">
@@ -604,11 +989,13 @@ function renderNewQuotation() {
           </div>
         </div>
 
-        <div class="field"><span class="field-label">${L('notesTerms')}</span><textarea id="notes" rows="3" class="textarea" placeholder="Payment terms, additional info…"></textarea></div>
+        <div class="field"><span class="field-label">${L('notesTerms')}</span><textarea id="notes" rows="3" class="textarea" placeholder="${esc(L('notesPh'))}"></textarea></div>
 
-        <div class="sheet-foot" style="padding:0;">
-          <button type="submit" class="btn btn-primary btn-block">${L('saveDocument')}</button>
+        <!-- Sticky: keeps the running total and Save in reach on long documents -->
+        <div class="doc-dock">
+          <div class="doc-dock-total"><span>${L('total')}</span><b id="dockTotal" class="tnum">฿0.00</b></div>
           <button type="button" class="btn btn-secondary" onclick="switchView('bills')">${L('cancel')}</button>
+          <button type="submit" class="btn btn-primary">${L(editing ? 'updateDocument' : 'saveDocument')}</button>
         </div>
       </form>
     </div>
@@ -619,21 +1006,15 @@ function itemRowMarkup(n) {
   return `
   <div class="item-row" style="border:1px solid var(--line-2);border-radius:var(--r-control);padding:12px;display:flex;flex-direction:column;gap:9px;">
     <div class="spread">
-      <span class="item-no" style="font-size:var(--t-micro);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);">Item #${n}</span>
-      <button type="button" class="act act-danger" onclick="removeItemRow(this)">${L('delete')}</button>
+      <span class="item-no" style="font-size:var(--t-micro);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);">${L('itemN')}${n}</span>
+      <button type="button" class="act act-danger" onclick="removeItemRow(this);markDocDirty()">${L('delete')}</button>
     </div>
-    <div class="field"><span class="field-label">${L('productService')}</span>
-      <select class="item-product select" onchange="fillProductInfo(this)">
-        <option value="">— Select or type manually —</option>
-        ${products.map(p => `<option value="${p.id}">${esc(p.name)} — ฿${fmt(p.price)}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field"><span class="field-label">${L('nameStar')}</span><input type="text" class="item-name input" placeholder="e.g. Website Development" required></div>
-    <div class="field"><span class="field-label">${L('descriptionLbl')}</span><input type="text" class="item-description input" placeholder="Optional detail"></div>
+    <div class="field"><span class="field-label">${L('productService')}</span><input type="text" class="item-name input" list="itemSuggestions" autocomplete="off" placeholder="${esc(L('itemPh'))}" required oninput="fillProductInfo(this)"></div>
+    <div class="field"><span class="field-label">${L('descriptionLbl')}</span><input type="text" class="item-description input" placeholder="${esc(L('optionalDetail'))}"></div>
     <div class="grid-3">
-      <div class="field"><span class="field-label">${L('qty')}</span><input type="number" class="item-qty input" min="1" value="1" required></div>
-      <div class="field"><span class="field-label">${L('unitPrice')}</span><input type="number" class="item-price input" min="0" step="0.01" required></div>
-      <div class="field"><span class="field-label">${L('amount')}</span><input type="text" class="item-total input" readonly value="฿0.00" style="background:var(--surface-2);color:var(--accent);font-weight:600;"></div>
+      <div class="field"><span class="field-label">${L('qty')}</span><input type="number" class="item-qty input" min="1" value="1" required oninput="updateItemTotal(this)"></div>
+      <div class="field"><span class="field-label">${L('unitPrice')}</span><input type="number" class="item-price input" min="0" step="0.01" required oninput="updateItemTotal(this)"></div>
+      <div class="field"><span class="field-label">${L('amount')}</span><input type="text" class="item-total input" readonly tabindex="-1" value="฿0.00" style="background:var(--surface-2);color:var(--accent);font-weight:600;"></div>
     </div>
   </div>`;
 }
@@ -658,22 +1039,64 @@ function dtc() { return ''; }
 // ═══════════════════════════════════════════════════════════════
 function renderUsersView() {
   const role = sessionStorage.getItem('userRole') || 'sales';
-  const isManager = role === 'manager';
+  const th = getLang() === 'th';
+
+  if (role !== 'admin') {
+    // Manager: team panel only
+    return `<div style="max-width:960px;margin:0 auto;width:100%;" class="stack">
+      <div class="view-head">
+        <div><h1>${L('userMgmt')}</h1><p>${th ? 'ผู้จัดการ — เพิ่มได้เฉพาะ Sales และ Technician' : 'Manager — can add Sales & Technician only'}</p></div>
+      </div>
+      ${renderTeamPanel(false)}
+    </div>`;
+  }
+
+  const t = adminTab || 'team';
+  const sub = (id, label) => `<button ${t === id ? 'aria-current="page"' : ''} onclick="switchAdminTab('${id}')">${esc(label)}</button>`;
+  const body = t === 'company' ? renderCompanyPanel() : t === 'audit' ? renderAuditPanel()
+    : t === 'archive' ? renderArchivePanel() : renderTeamPanel(true);
+
   return `
-  <div style="max-width:900px;margin:0 auto;width:100%;" class="stack">
+  <div style="max-width:960px;margin:0 auto;width:100%;" class="stack">
     <div class="view-head">
-      <div><h1>${L('userMgmt')}</h1><p>${isManager ? 'Manager — can add Sales & Technician only' : 'Full access — all roles'}</p></div>
+      <div>
+        <h1>${th ? 'ผู้ดูแลระบบ' : 'Admin'}</h1>
+        <p>${th ? 'จัดการทีมงาน สิทธิ์ ข้อมูลบริษัท บันทึกการใช้งาน และคลังข้อมูลเก่า' : 'Team, roles, company profile, activity log and archive'}</p>
+      </div>
     </div>
+    <div class="subtabs">
+      ${sub('team',    th ? 'ทีมงานและสิทธิ์' : 'Team & Roles')}
+      ${sub('company', th ? 'ข้อมูลบริษัท'     : 'Company')}
+      ${sub('audit',   th ? 'บันทึกการใช้งาน'  : 'Audit Log')}
+      ${sub('archive', th ? 'คลังข้อมูลเก่า'   : 'Archive')}
+    </div>
+    ${body}
+  </div>`;
+}
+
+function renderTeamPanel(showRoleBar) {
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  const isManager = role === 'manager';
+  const th = getLang() === 'th';
+  return `
+  <div class="stack">
+    ${showRoleBar ? `<div class="rolebar" id="au_rolecounts">
+      <div class="rc"><div class="n">–</div><div class="l">${th ? 'สมาชิก' : 'Members'}</div></div>
+      <div class="rc"><div class="n">–</div><div class="l">Sales</div></div>
+      <div class="rc"><div class="n">–</div><div class="l">Technician</div></div>
+      <div class="rc"><div class="n">–</div><div class="l">Manager</div></div>
+      <div class="rc"><div class="n">–</div><div class="l">Admin</div></div>
+    </div>` : ''}
 
     <div class="card card-pad stack">
-      <span class="card-title">Create new user account</span>
-      <div class="notice">After creating a user, share their email and password so they can sign in.</div>
+      <span class="card-title">${th ? 'สร้างบัญชีผู้ใช้ใหม่' : 'Create new user account'}</span>
+      <div class="notice">${th ? 'หลังสร้างบัญชีแล้ว แจ้งอีเมลและรหัสผ่านให้ผู้ใช้เพื่อเข้าสู่ระบบ' : 'After creating a user, share their email and password so they can sign in.'}</div>
       <div class="grid-2">
-        <div class="field"><span class="field-label">${L('fullName')} *</span><input type="text" id="au_name" class="input" placeholder="e.g. John Smith"></div>
-        <div class="field"><span class="field-label">${L('email')} *</span><input type="email" id="au_email" class="input" placeholder="john@company.com"></div>
+        <div class="field"><span class="field-label">${L('fullName')} *</span><input type="text" id="au_name" class="input" placeholder="${th ? 'เช่น สมหญิง จันทร์เพ็ญ' : 'e.g. Somying Chanpen'}"></div>
+        <div class="field"><span class="field-label">${L('email')} *</span><input type="email" id="au_email" class="input" placeholder="name@baigamgab.co"></div>
       </div>
       <div class="grid-2">
-        <div class="field"><span class="field-label">${L('password')} *</span><input type="password" id="au_pass" class="input" placeholder="Min 6 characters"></div>
+        <div class="field"><span class="field-label">${L('password')} *</span><input type="password" id="au_pass" class="input" placeholder="${th ? 'อย่างน้อย 6 ตัวอักษร' : 'Min 6 characters'}"></div>
         <div class="field"><span class="field-label">${L('roleLbl')} *</span>
           <select id="au_role" class="select">
             <option value="sales">Sales</option>
@@ -690,6 +1113,142 @@ function renderUsersView() {
     <div class="card">
       <div class="card-head"><span class="card-title">${L('allUsers')}</span></div>
       <div id="au_table" class="card-pad"><p class="muted" style="font-size:var(--t-meta);">${L('loadingUsers')}</p></div>
+    </div>
+  </div>`;
+}
+
+function renderCompanyPanel() {
+  const th = getLang() === 'th';
+  const line = (id, label, val) => `<div class="field"><span class="field-label">${label}</span><input id="${id}" class="input" value="${esc(val || '')}"></div>`;
+  return `
+  <div class="card card-pad stack">
+    <span class="card-title">${th ? 'ข้อมูลบริษัทและภาษี' : 'Company & tax details'}</span>
+    <div class="notice">${th ? 'ข้อมูลนี้จะแสดงบนหัวเอกสารและใบกำกับภาษี PDF' : 'Shown on document headers and tax-invoice PDFs.'}</div>
+    <div class="field"><span class="field-label">${th ? 'ชื่อบริษัท' : 'Company name'}</span><input id="ci_name" class="input" value="${esc(companyInfo.name)}"></div>
+    <div class="field"><span class="field-label">${th ? 'ที่อยู่' : 'Address'}</span><textarea id="ci_address" rows="2" class="textarea">${esc(companyInfo.address)}</textarea></div>
+    <div class="grid-2">
+      ${line('ci_phone', th ? 'โทรศัพท์' : 'Phone', companyInfo.phone)}
+      ${line('ci_email', th ? 'อีเมล' : 'Email', companyInfo.email)}
+    </div>
+    <div class="grid-2">
+      ${line('ci_taxId', th ? 'เลขประจำตัวผู้เสียภาษี' : 'Tax ID', companyInfo.taxId)}
+      ${line('ci_website', th ? 'เว็บไซต์' : 'Website', companyInfo.website)}
+    </div>
+    <div><button class="btn btn-primary" onclick="saveCompanyInfo()">${L('saveChanges')}</button></div>
+  </div>`;
+}
+
+function saveCompanyInfo() {
+  const g = id => (document.getElementById(id) || {}).value || '';
+  companyInfo.name    = g('ci_name').trim();
+  companyInfo.address = g('ci_address').trim();
+  companyInfo.phone   = g('ci_phone').trim();
+  companyInfo.email   = g('ci_email').trim();
+  companyInfo.taxId   = g('ci_taxId').trim();
+  companyInfo.website = g('ci_website').trim();
+  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+  if (typeof syncCompanyInfoToFirebase === 'function') syncCompanyInfoToFirebase();
+  showNotification(getLang() === 'th' ? 'บันทึกข้อมูลบริษัทแล้ว' : 'Company details saved');
+}
+
+function renderAuditPanel() {
+  const th = getLang() === 'th';
+  const ev = [];
+  quotations.forEach(q => {
+    if (q.submittedAt) ev.push({ t: q.submittedAt, who: q.submittedBy, act: th ? 'ส่งตรวจสอบ' : 'submitted', doc: q.id });
+    if (q.approvedAt)  ev.push({ t: q.approvedAt,  who: q.approvedBy,  act: th ? 'อนุมัติ'    : 'approved',  doc: q.id });
+    if (q.rejectedAt)  ev.push({ t: q.rejectedAt,  who: q.rejectedBy,  act: th ? 'ปฏิเสธ'     : 'rejected',  doc: q.id, note: q.rejectionReason });
+  });
+  // Deletes and archiving live in the archive, which is fetched on demand.
+  if (!archiveLoaded) loadArchive().then(() => { if (currentView === 'users' && adminTab === 'audit') renderApp(); });
+  ARCHIVE_LISTS.forEach(listName => Object.values(archive[listName] || {}).forEach(r => {
+    if (r.inactiveAt) ev.push({ t: r.inactiveAt, who: r.inactiveBy, doc: r.id,
+      act: r.inactiveReason === 'archived' ? (th ? 'เก็บเข้าคลัง' : 'archived') : (th ? 'ลบ' : 'deleted') });
+  }));
+  ev.sort((a, b) => (a.t < b.t ? 1 : -1));
+  const rows = ev.slice(0, 40).map(e => {
+    const d = new Date(e.t);
+    const tm = d.toLocaleDateString(th ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short' }) +
+      ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `<div class="le">
+      <span class="tm">${esc(tm)}</span>
+      <span><span class="who">${esc((e.who || '').split('@')[0] || '—')}</span> ${esc(e.act)} <b>${esc(e.doc)}</b>${e.note ? ` — <span class="note">“${esc(e.note)}”</span>` : ''}</span>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-head"><span class="card-title">${th ? 'บันทึกการใช้งาน' : 'Activity log'}</span><span class="cell-sub">${ev.length} ${th ? 'รายการ' : 'events'}</span></div>
+    ${ev.length ? `<div class="log">${rows}</div>` : emptyBody(th ? 'ยังไม่มีบันทึก' : 'No activity yet', '')}
+  </div>`;
+}
+
+// ── ARCHIVE (soft-deleted + archived records) ─────────────────
+const ARCHIVE_KIND = {
+  quotations:     ['Document', 'เอกสาร'],
+  purchaseOrders: ['Purchase order', 'ใบสั่งซื้อ'],
+  customers:      ['Customer', 'ลูกค้า'],
+  products:       ['Product', 'สินค้า'],
+  poCosts:        ['PO cost', 'ค่าใช้จ่าย PO'],
+  materialPrices: ['Material price', 'ราคาวัสดุ'],
+};
+
+function renderArchivePanel() {
+  const th = getLang() === 'th';
+  if (!archiveLoaded) loadArchive().then(() => { if (currentView === 'users' && adminTab === 'archive') renderApp(); });
+
+  const dead = findDeadRecords(archiveMonths);
+  const deadN = dead.quotations.length + dead.purchaseOrders.length;
+  const all = ARCHIVE_LISTS.flatMap(listName => Object.values(archive[listName] || {}).map(r => ({ listName, r })));
+  const n = { all: all.length, deleted: 0, archived: 0 };
+  all.forEach(({ r }) => { if (n[r.inactiveReason] !== undefined) n[r.inactiveReason]++; });
+  const shown = all
+    .filter(({ r }) => archiveFilter === 'all' || r.inactiveReason === archiveFilter)
+    .sort((a, b) => (a.r.inactiveAt < b.r.inactiveAt ? 1 : -1));
+  const fchip = (val, label) => `<button class="chip" aria-pressed="${archiveFilter === val}" onclick="setArchiveFilter('${val}')">${esc(label)} <span class="n">${n[val]}</span></button>`;
+
+  const rows = shown.map(({ listName, r }) => {
+    const title = r.customer || r.name || r.materialName || r.description || '—';
+    const amount = r.total ?? r.amount ?? r.pricePerUnit ?? r.price;
+    const when = new Date(r.inactiveAt);
+    return `<tr>
+      <td><div class="cell-strong">${esc(r.id)}</div><div class="cell-sub">${esc(ARCHIVE_KIND[listName][th ? 1 : 0])}</div></td>
+      <td><div class="cell-strong">${esc(title)}</div><div class="cell-sub">${esc(r.date || '')}</div></td>
+      <td class="num tnum">${amount != null ? baht(amount) : '—'}</td>
+      <td><span class="pill ${r.inactiveReason === 'archived' ? 'pill-neutral' : 'pill-rejected'}">${r.inactiveReason === 'archived' ? (th ? 'เก็บเข้าคลัง' : 'Archived') : (th ? 'ลบแล้ว' : 'Deleted')}</span>
+        <div class="cell-sub">${esc(when.toLocaleDateString(th ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))} · ${esc((r.inactiveBy || '').split('@')[0] || '—')}</div></td>
+      <td><button class="act act-pos" onclick="restoreFromArchive('${listName}','${esc(r.id)}')">${th ? 'กู้คืน' : 'Restore'}</button></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="stack">
+    <div class="card card-pad stack">
+      <span class="card-title">${th ? 'เก็บข้อมูลเก่าเข้าคลัง' : 'Archive old records'}</span>
+      <div class="notice">${th
+        ? 'ค้นหาเอกสารที่ปิดแล้ว (อนุมัติ/ปฏิเสธ) และใบสั่งซื้อที่เสร็จสิ้นซึ่งเก่ากว่าที่กำหนด แล้วย้ายเข้าคลัง ข้อมูลไม่ถูกลบ แต่จะไม่ถูกโหลดตอนเปิดแอป ทำให้แอปเร็วขึ้นเมื่อข้อมูลมากขึ้น'
+        : 'Finds closed documents (approved or rejected) and completed purchase orders older than the cut-off and moves them to the archive. Nothing is erased, but archived records are no longer downloaded when the app starts, so it stays fast as data grows.'}</div>
+      <div class="filters">
+        <label class="field"><span class="field-label">${th ? 'เก่ากว่า' : 'Older than'}</span>
+          <select class="select" onchange="setArchiveMonths(this.value)">
+            ${[3, 6, 12, 24].map(m => `<option value="${m}" ${archiveMonths === m ? 'selected' : ''}>${m} ${th ? 'เดือน' : 'months'}</option>`).join('')}
+          </select>
+        </label>
+        <div class="field"><span class="field-label">${th ? 'ตรงเงื่อนไข' : 'Matches'}</span>
+          <div style="padding:8px 0;font-size:var(--t-meta);"><b>${dead.quotations.length}</b> ${th ? 'เอกสาร' : 'documents'} · <b>${dead.purchaseOrders.length}</b> POs <span class="cell-sub">(${th ? 'ก่อน' : 'before'} ${esc(dead.cutoff)})</span></div>
+        </div>
+        <button class="btn btn-primary" ${deadN ? '' : 'disabled'} onclick="archiveOldRecords()">${icon('box', '')}${th ? `เก็บเข้าคลัง ${deadN} รายการ` : `Archive ${deadN} record${deadN === 1 ? '' : 's'}`}</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head" style="flex-wrap:wrap;gap:8px;">
+        <span class="card-title">${th ? 'ข้อมูลที่ลบและเก็บเข้าคลัง' : 'Deleted & archived records'}</span>
+        <div class="chips">${fchip('all', L('allFilter'))}${fchip('deleted', th ? 'ลบแล้ว' : 'Deleted')}${fchip('archived', th ? 'เก็บเข้าคลัง' : 'Archived')}
+          <button class="chip" onclick="refreshArchive()">${th ? 'รีเฟรช' : 'Refresh'}</button></div>
+      </div>
+      ${!archiveLoaded ? `<div class="card-pad"><p class="muted" style="font-size:var(--t-meta);">${th ? 'กำลังโหลด…' : 'Loading…'}</p></div>`
+        : shown.length ? `<div class="table-wrap"><table class="table" style="min-width:680px;">
+            <thead><tr><th>${th ? 'รายการ' : 'Record'}</th><th>${th ? 'ชื่อ / วันที่' : 'Name / date'}</th><th class="num">${L('total')}</th><th>${L('statusCol')}</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>`
+        : emptyBody(th ? 'คลังว่างเปล่า' : 'Archive is empty', th ? 'รายการที่ลบหรือเก็บเข้าคลังจะแสดงที่นี่และกู้คืนได้' : 'Deleted and archived records appear here and can be restored.')}
     </div>
   </div>`;
 }
@@ -735,6 +1294,19 @@ function adminLoadUsers() {
       container.innerHTML = `<div class="table-wrap"><table class="table" style="min-width:620px;">
         <thead><tr><th>Name</th><th>${L('email')}</th><th>Role</th><th>Created</th><th>Change role</th></tr></thead>
         <tbody>${rows}</tbody></table></div>`;
+
+      const rc = document.getElementById('au_rolecounts');
+      if (rc) {
+        const k = { total: 0, sales: 0, technician: 0, manager: 0, admin: 0 };
+        Object.values(data).forEach(u => { k.total++; if (k[u.role] != null) k[u.role]++; });
+        const th = getLang() === 'th';
+        rc.innerHTML = `
+          <div class="rc"><div class="n">${k.total}</div><div class="l">${th ? 'สมาชิก' : 'Members'}</div></div>
+          <div class="rc"><div class="n">${k.sales}</div><div class="l">Sales</div></div>
+          <div class="rc"><div class="n">${k.technician}</div><div class="l">Technician</div></div>
+          <div class="rc"><div class="n">${k.manager}</div><div class="l">Manager</div></div>
+          <div class="rc"><div class="n">${k.admin}</div><div class="l">Admin</div></div>`;
+      }
     }).catch(err => {
       container.innerHTML = `<p class="alert-err">Error: ${esc(err.message)}</p>`;
     });
@@ -745,12 +1317,12 @@ function adminSaveRole(uid, currentRole, sel) {
   const newRole = sel.value;
   const isManager = sessionStorage.getItem('userRole') === 'manager';
   if (isManager && (newRole === 'admin' || newRole === 'manager')) {
-    alert('Managers cannot assign Admin or Manager roles.');
+    showNotification('⚠️ Managers cannot assign Admin or Manager roles');
     sel.value = currentRole; return;
   }
   database.ref('users/' + uid + '/role').set(newRole)
     .then(() => showNotification('Role updated to ' + newRole))
-    .catch(err => alert('Error: ' + err.message));
+    .catch(err => showNotification('❌ Could not update role', { detail: err.message }));
 }
 
 async function adminCreateUser() {
@@ -797,20 +1369,16 @@ async function adminCreateUser() {
 // ═══════════════════════════════════════════════════════════════
 // PURCHASE ORDERS
 // ═══════════════════════════════════════════════════════════════
-function renderPOView() {
+function poResultsHTML() {
   const role = sessionStorage.getItem('userRole') || 'sales';
   const canEdit = role === 'sales' || role === 'admin' || role === 'manager';
 
-  let list = [...purchaseOrders];
+  let list = poFiltered();
   if (poStatusFilter !== 'all') list = list.filter(p => p.status === poStatusFilter);
   if (poSearchQuery) {
     const s = poSearchQuery.toLowerCase();
     list = list.filter(p => p.id.toLowerCase().includes(s) || (p.customer || '').toLowerCase().includes(s) || p.items.some(i => (i.name || '').toLowerCase().includes(s)));
   }
-  const counts = { all: purchaseOrders.length, open: 0, 'in-progress': 0, completed: 0 };
-  purchaseOrders.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
-
-  const poChip = (val, label) => `<button class="chip" aria-pressed="${poStatusFilter === val}" onclick="poStatusFilter='${val}';renderApp()">${esc(label)} <span class="n">${counts[val]}</span></button>`;
   const poPill = { 'open':'pill-open', 'in-progress':'pill-progress', 'completed':'pill-completed' };
   const poLbl  = { 'open':L('open'), 'in-progress':L('inProgress'), 'completed':L('completed') };
 
@@ -834,6 +1402,32 @@ function renderPOView() {
     </tr>`;
   }).join('');
 
+  return resultCount('po', list.length) + (list.length === 0
+    ? emptyState(purchaseOrders.length === 0 ? L('noOrders') : 'No orders match your filter.', canEdit ? 'Create a purchase order to get started.' : '', 'po')
+    : `<div class="card"><div class="table-wrap"><table class="table" style="min-width:760px;">
+        <thead><tr>
+          <th>${L('poId')}</th><th>${L('date')}</th><th>${L('customer')}</th><th>${L('itemsCol')}</th>
+          <th class="num">${L('total')}</th><th>${L('statusCol')}</th><th>${L('actions')}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>`);
+}
+
+// Customer + date range filters for POs (status and search are applied on top).
+function poFiltered() {
+  const f = listFilters.po;
+  return purchaseOrders.filter(p => (!f.name || p.customer === f.name) && inDateRange(p.date, f));
+}
+
+function renderPOView() {
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  const canEdit = role === 'sales' || role === 'admin' || role === 'manager';
+
+  const facet = poFiltered();
+  const counts = { all: facet.length, open: 0, 'in-progress': 0, completed: 0 };
+  facet.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+  const poChip = (val, label) => `<button class="chip" aria-pressed="${poStatusFilter === val}" onclick="poStatusFilter='${val}';renderApp()">${esc(label)} <span class="n">${counts[val]}</span></button>`;
+
   return `
     <div class="view-head">
       <div><h1>${L('po')}</h1><p>${purchaseOrders.length} ${L('ordersCount')}</p></div>
@@ -841,39 +1435,33 @@ function renderPOView() {
     </div>
 
     <div class="card card-pad stack">
-      <div class="search-wrap">
-        ${icon('search','')}
-        <input class="input input-search" placeholder="Search by PO ID, customer, item…" value="${esc(poSearchQuery)}" oninput="poSearchQuery=this.value;renderApp()">
-        ${poSearchQuery ? `<button class="search-clear" onclick="poSearchQuery='';renderApp()">${icon('x','')}</button>` : ''}
-      </div>
+      ${searchBox('po', 'Search by PO ID, customer, item…')}
+      ${filterBar('po', L('customer2'), purchaseOrders.map(p => p.customer))}
       <div class="chips">
         ${poChip('all', L('allFilter'))}${poChip('open', L('open'))}${poChip('in-progress', L('inProgress'))}${poChip('completed', L('completed'))}
       </div>
     </div>
 
-    ${list.length === 0
-      ? emptyState(purchaseOrders.length === 0 ? L('noOrders') : 'No orders match your filter.', canEdit ? 'Create a purchase order to get started.' : '', 'po')
-      : `<div class="card"><div class="table-wrap"><table class="table" style="min-width:760px;">
-          <thead><tr>
-            <th>${L('poId')}</th><th>${L('date')}</th><th>${L('customer')}</th><th>${L('itemsCol')}</th>
-            <th class="num">${L('total')}</th><th>${L('statusCol')}</th><th>${L('actions')}</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div></div>`}`;
+    <div id="searchResults">${poResultsHTML()}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MATERIAL COST PER SUPPLIER
 // ═══════════════════════════════════════════════════════════════
-function renderMaterialsView() {
-  let list = [...materialPrices];
+function matGrouped() {
+  const f = listFilters.mat;
+  let list = materialPrices.filter(m => (!f.name || m.supplier === f.name) && inDateRange(m.date, f));
   if (matSearchQuery) {
     const s = matSearchQuery.toLowerCase();
     list = list.filter(m => (m.materialName || '').toLowerCase().includes(s) || (m.supplier || '').toLowerCase().includes(s));
   }
   const grouped = {};
   list.forEach(m => { (grouped[m.materialName] = grouped[m.materialName] || []).push(m); });
+  return grouped;
+}
 
+function matResultsHTML() {
+  const grouped = matGrouped();
   const blocks = Object.entries(grouped).map(([matName, entries]) => {
     const minPrice = Math.min(...entries.map(e => e.pricePerUnit));
     const maxPrice = Math.max(...entries.map(e => e.pricePerUnit));
@@ -902,35 +1490,36 @@ function renderMaterialsView() {
     </div>`;
   }).join('');
 
+  const n = Object.values(grouped).reduce((s, e) => s + e.length, 0);
+  if (Object.keys(grouped).length === 0 && materialPrices.length) {
+    return resultCount('mat', 0) + emptyState(L('noResults'), L('tryFilter2'), 'box');
+  }
+  return Object.keys(grouped).length === 0
+    ? `<div class="card"><div class="empty">
+        <span class="empty-ico">${icon('box','')}</span>
+        <h3>${L('noMaterialsMsg')}</h3>
+        <p>Open a Purchase Order → <b>${L('costs')}</b> → add a <b>${L('material')}</b> cost with a supplier name.</p>
+      </div></div>`
+    : resultCount('mat', n) + `<div class="stack">${blocks}</div>`;
+}
+
+function renderMaterialsView() {
   return `
     <div class="view-head">
-      <div><h1>${L('materialCostTitle')}</h1><p>${Object.keys(grouped).length} ${L('materialsTracked')}</p></div>
+      <div><h1>${L('materialCostTitle')}</h1><p>${Object.keys(matGrouped()).length} ${L('materialsTracked')}</p></div>
       <button class="btn btn-primary" onclick="openAddMaterialForm()">${icon('plus')}${L('addMaterial')}</button>
     </div>
 
-    <div class="card card-pad">
-      <div class="search-wrap">
-        ${icon('search','')}
-        <input class="input input-search" placeholder="Search by material or supplier…" value="${esc(matSearchQuery)}" oninput="matSearchQuery=this.value;renderApp()">
-        ${matSearchQuery ? `<button class="search-clear" onclick="matSearchQuery='';renderApp()">${icon('x','')}</button>` : ''}
-      </div>
+    <div class="card card-pad stack">
+      ${searchBox('mat', 'Search by material or supplier…')}
+      ${filterBar('mat', L('supplierCol'), materialPrices.map(m => m.supplier))}
     </div>
 
-    ${Object.keys(grouped).length === 0
-      ? `<div class="card"><div class="empty">
-          <span class="empty-ico">${icon('box','')}</span>
-          <h3>${L('noMaterialsMsg')}</h3>
-          <p>Open a Purchase Order → <b>${L('costs')}</b> → add a <b>${L('material')}</b> cost with a supplier name.</p>
-        </div></div>`
-      : `<div class="stack">${blocks}</div>`}`;
+    <div id="searchResults">${matResultsHTML()}</div>`;
 }
 
 function deleteMaterialPrice(id) {
-  if (!confirm('Delete this material price entry?')) return;
-  materialPrices = materialPrices.filter(m => m.id !== id);
-  syncMaterialPricesToFirebase();
-  renderApp();
-  showNotification('Deleted');
+  removeWithUndo('materialPrices', id, L('entryDeleted'));
 }
 
 function openAddMaterialForm() {
@@ -1065,3 +1654,270 @@ function renderProductsView(){ return emptyState('Products', 'Product catalog.',
 function renderThemeSwitcher(){ return ''; }
 function sc(label, value)  { return stat(label, value, 'var(--brand)'); }
 function tRow(label, value, color) { return kv(label, value, color); }
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIRM DIALOG — styled replacement for confirm() / prompt()
+// Resolves true/false, or with `input` the entered text (null on cancel).
+// ═══════════════════════════════════════════════════════════════
+function confirmDialog({ title, message = '', confirmLabel, cancelLabel = L('cancel'), danger = false, input = null }) {
+  return new Promise(resolve => {
+    document.getElementById('confirmModal')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'confirmModal';
+    wrap.className = 'scrim scrim-dialog';
+    wrap.innerHTML = `
+      <div class="sheet dialog" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" aria-describedby="cfMsg">
+        <form class="sheet-body">
+          <div>
+            <div id="cfTitle" class="dialog-title">${esc(title)}</div>
+            ${message ? `<p id="cfMsg" class="dialog-msg">${esc(message)}</p>` : ''}
+          </div>
+          ${input ? `<div class="field"><span class="field-label">${esc(input.label)}</span><textarea id="cfInput" class="textarea" rows="3" required></textarea></div>` : ''}
+          <div class="dialog-foot">
+            <button type="button" class="btn btn-secondary" data-cf="cancel">${esc(cancelLabel)}</button>
+            <button type="submit" class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}">${esc(confirmLabel || 'OK')}</button>
+          </div>
+        </form>
+      </div>`;
+
+    const cancelValue = input ? null : false;
+    const done = value => {
+      document.removeEventListener('keydown', onKey, true);
+      wrap.remove();
+      resolve(value);
+    };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); done(cancelValue); } };
+    wrap.addEventListener('click', e => {
+      if (e.target === wrap || e.target.closest('[data-cf="cancel"]')) done(cancelValue);
+    });
+    wrap.querySelector('form').addEventListener('submit', e => {
+      e.preventDefault();
+      if (!input) return done(true);
+      const v = wrap.querySelector('#cfInput').value.trim();
+      if (v) done(v);
+    });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(wrap);
+    (wrap.querySelector('#cfInput') || wrap.querySelector('button[type="submit"]')).focus();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CUSTOMER PANEL — side drawer (bottom sheet on phones)
+// ═══════════════════════════════════════════════════════════════
+function viewCustomer(id) {
+  const c = customers.find(x => x.id === id);
+  if (!c) return;
+  closeCustomerPanel();
+  const key = (c.name || '').trim().toLowerCase();
+  const docs = quotations.filter(q => (q.customer || '').trim().toLowerCase() === key);
+  const billed = docs.reduce((s, q) => s + (q.total || 0), 0);
+  const line = (label, value, cls = '') => value
+    ? `<div class="kv"><span class="field-label">${label}</span><span class="${cls}">${esc(value)}</span></div>` : '';
+
+  const html = `
+  <div id="customerPanel" class="scrim scrim-side" onclick="if(event.target.id==='customerPanel')closeCustomerPanel()">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="cpName">
+      <div class="sheet-head">
+        <div><div class="k">${L(c.type === 'company' ? 'company' : 'individual')}</div><div id="cpName" class="h">${esc(c.name)}</div></div>
+        <button class="sheet-x" onclick="closeCustomerPanel()" aria-label="${L('close')}">${icon('x','')}</button>
+      </div>
+      <div class="sheet-body">
+        <div class="grid-2">
+          <div class="stat" style="--stat-accent:var(--accent);"><div class="stat-label">${L('docsCount')}</div><div class="stat-value">${docs.length}</div></div>
+          <div class="stat" style="--stat-accent:var(--pos);"><div class="stat-label">${L('totalBilled')}</div><div class="stat-value tnum">${baht(billed)}</div></div>
+        </div>
+        <div class="stack" style="gap:10px;">
+          ${line(L('email'), c.email)}
+          ${line(L('phone'), c.phone)}
+          ${line(L('taxId'), c.taxId, 'tnum')}
+          ${line(L('address'), c.address)}
+        </div>
+        <div>
+          <div class="card-title" style="margin-bottom:6px;">${L('recentDocs')}</div>
+          ${docs.length ? `<div class="card">${docs.slice(0, 6).map(q => `
+            <button class="row row-btn" onclick="closeCustomerPanel();viewQuotation('${q.id}')">
+              <div class="row-main"><div class="t">${esc(q.id)}</div><div class="s">${esc(q.date)} · ${(q.items || []).length} ${L('itemsCol')}</div></div>
+              <div class="row-end"><div class="tnum" style="font-weight:600;">${baht(q.total)}</div>${getStatusPill(q.status)}</div>
+            </button>`).join('')}</div>`
+          : `<p class="muted" style="font-size:var(--t-meta);">${L('noDocsYet')}</p>`}
+        </div>
+      </div>
+      <div class="sheet-foot drawer-foot">
+        <button class="btn btn-primary btn-block" onclick="startDocForCustomer('${c.id}')">${icon('plus')}${L('newDocForCustomer')}</button>
+        <button class="btn btn-secondary" onclick="editCustomer('${c.id}')">${icon('edit')}${L('edit')}</button>
+      </div>
+    </aside>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.addEventListener('keydown', customerPanelKey);
+}
+
+function customerPanelKey(e) { if (e.key === 'Escape') closeCustomerPanel(); }
+
+function closeCustomerPanel() {
+  document.getElementById('customerPanel')?.remove();
+  document.removeEventListener('keydown', customerPanelKey);
+}
+
+async function startDocForCustomer(id) {
+  const c = customers.find(x => x.id === id);
+  closeCustomerPanel();
+  await switchView('new');
+  const input = document.getElementById('customerName');
+  if (c && input) { input.value = c.name; fillCustomerInfo(input); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUCTS — list shown under Customers
+// ═══════════════════════════════════════════════════════════════
+function renderProductsPanel() {
+  return `
+    <div class="view-head" style="margin-top:var(--s3);">
+      <div><h2 class="section-title">${L('products')}</h2><p>${L('productsHint')}</p></div>
+      <button class="btn btn-secondary" onclick="showAddProductModal()">${icon('plus')}${L('addProduct')}</button>
+    </div>
+    ${!products.length ? emptyState(L('noProducts'), L('productsHint'), 'box') : `
+    <div class="card">
+      <div class="table-wrap">
+        <table class="table" style="min-width:560px;">
+          <thead><tr>
+            <th>${L('name')}</th><th>${L('descriptionLbl')}</th><th>${L('unit')}</th><th class="num">${L('priceCol')}</th><th>${L('actions')}</th>
+          </tr></thead>
+          <tbody>${products.map(p => `
+            <tr>
+              <td class="cell-strong">${esc(p.name)}</td>
+              <td class="muted">${esc(p.description) || '—'}</td>
+              <td class="muted">${esc(p.unit) || '—'}</td>
+              <td class="num cell-strong tnum">${baht(p.price)}</td>
+              <td style="white-space:nowrap;">
+                <button class="act act-warn" onclick="editProduct('${p.id}')">${L('edit')}</button>
+                <button class="act act-danger" onclick="deleteProduct('${p.id}')">${L('delete')}</button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMMAND PALETTE — Ctrl/⌘ + K: jump to any document, customer,
+// product or view, or run a quick action.
+// ═══════════════════════════════════════════════════════════════
+let paletteItems = [];
+let paletteIndex = 0;
+
+function isMac() { return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent); }
+
+function paletteSource() {
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  const canDocs = role === 'sales' || role === 'admin' || role === 'manager';
+  const canOps = canDocs || role === 'technician';
+  const canUsers = role === 'admin' || role === 'manager';
+  const go = L('goTo') + ' ';
+  const out = [];
+  const add = (group, ico, label, sub, run, keywords = '') =>
+    out.push({ group, ico, label, sub, run, hay: (label + ' ' + sub + ' ' + keywords).toLowerCase() });
+
+  const A = L('actionsGrp');
+  if (canDocs) add(A, 'plus', L('newDoc'), '', () => switchView('new'), 'create new document bill invoice');
+  if (role === 'admin') add(A, 'dashboard', go + L('dashboard'), '', () => switchView('dashboard'));
+  add(A, 'bills', go + L('bills'), '', () => switchView('bills'));
+  if (canDocs) add(A, 'users', go + L('customers'), '', () => switchView('customers'));
+  if (canOps) add(A, 'po', go + L('po'), '', () => switchView('po'));
+  if (canOps) add(A, 'box', go + L('materials'), '', () => switchView('materials'));
+  if (canUsers) add(A, 'shield', go + L('manageUsers'), '', () => switchView('users'));
+  if (canDocs) add(A, 'plus', L('addCustomer'), '', () => showAddCustomerModal());
+  if (canDocs) add(A, 'plus', L('addProduct'), '', () => showAddProductModal());
+  add(A, getMode() === 'dark' ? 'sun' : 'moon', L('toggleTheme'), '', toggleMode, 'theme dark light');
+  add(A, 'dot', L('switchLang'), '', () => setLang(getLang() === 'en' ? 'th' : 'en'), 'language thai english ภาษา');
+
+  quotations.forEach(q => add(L('bills'), 'bills', q.id, `${q.customer} · ${q.date} · ฿${fmt(q.total)}`,
+    () => viewQuotation(q.id), (q.items || []).map(i => i.name).join(' ') + ' ' + q.status));
+  if (canDocs) {
+    customers.forEach(c => add(L('customers'), 'user', c.name, [c.email, c.phone].filter(Boolean).join(' · '),
+      () => viewCustomer(c.id), c.taxId || ''));
+    products.forEach(p => add(L('products'), 'box', p.name, `฿${fmt(p.price)}${p.unit ? ' / ' + p.unit : ''}`,
+      () => editProduct(p.id), p.description || ''));
+  }
+  return out;
+}
+
+function openPalette() {
+  if (document.getElementById('cmdk')) return;
+  const html = `
+  <div id="cmdk" class="scrim scrim-top" onclick="if(event.target.id==='cmdk')closePalette()">
+    <div class="cmdk" role="dialog" aria-modal="true" aria-label="${L('search')}">
+      <div class="cmdk-search">
+        ${icon('search', '')}
+        <input id="cmdkInput" autocomplete="off" spellcheck="false" placeholder="${esc(L('palettePh'))}"
+          role="combobox" aria-expanded="true" aria-controls="cmdkList" oninput="renderPalette()">
+        <kbd>Esc</kbd>
+      </div>
+      <div id="cmdkList" class="cmdk-list" role="listbox"></div>
+      <div class="cmdk-foot"><kbd>↑</kbd><kbd>↓</kbd> <kbd>↵</kbd> <kbd>Esc</kbd> <span>${L('paletteHint')}</span></div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const input = document.getElementById('cmdkInput');
+  input.addEventListener('keydown', paletteKey);
+  renderPalette();
+  input.focus();
+}
+
+function closePalette() { document.getElementById('cmdk')?.remove(); }
+
+function renderPalette() {
+  const q = (document.getElementById('cmdkInput')?.value || '').trim().toLowerCase();
+  const terms = q.split(/\s+/).filter(Boolean);
+  const all = paletteSource();
+  // No query: actions + a few recent documents. With a query: every term must match.
+  paletteItems = terms.length
+    ? all.filter(it => terms.every(t => it.hay.includes(t))).slice(0, 40)
+    : all.filter(it => it.group === L('actionsGrp')).concat(all.filter(it => it.group === L('bills')).slice(0, 5));
+  paletteIndex = 0;
+
+  const list = document.getElementById('cmdkList');
+  if (!paletteItems.length) { list.innerHTML = `<div class="cmdk-empty">${L('noResults')}</div>`; return; }
+  let lastGroup = '';
+  list.innerHTML = paletteItems.map((it, i) => {
+    const head = it.group !== lastGroup ? `<div class="cmdk-group">${esc(it.group)}</div>` : '';
+    lastGroup = it.group;
+    return `${head}<div class="cmdk-item" role="option" id="cmdk-${i}" data-i="${i}" aria-selected="${i === 0}"
+        onmousemove="setPaletteIndex(${i})" onclick="runPaletteItem(${i})">
+      <span class="cmdk-ico">${icon(it.ico, '')}</span>
+      <span class="cmdk-text"><span class="cmdk-label">${esc(it.label)}</span>${it.sub ? `<span class="cmdk-sub">${esc(it.sub)}</span>` : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function setPaletteIndex(i) {
+  if (i === paletteIndex) return;
+  document.getElementById('cmdk-' + paletteIndex)?.setAttribute('aria-selected', 'false');
+  paletteIndex = i;
+  const el = document.getElementById('cmdk-' + i);
+  el?.setAttribute('aria-selected', 'true');
+  el?.scrollIntoView({ block: 'nearest' });
+}
+
+function runPaletteItem(i) {
+  const it = paletteItems[i];
+  if (!it) return;
+  closePalette();
+  it.run();
+}
+
+function paletteKey(e) {
+  if (e.key === 'ArrowDown') { e.preventDefault(); setPaletteIndex(Math.min(paletteIndex + 1, paletteItems.length - 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setPaletteIndex(Math.max(paletteIndex - 1, 0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); runPaletteItem(paletteIndex); }
+  else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    if (!document.getElementById('app')?.children.length) return;   // not signed in / not rendered
+    e.preventDefault();
+    document.getElementById('cmdk') ? closePalette() : openPalette();
+  }
+});

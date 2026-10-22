@@ -2,11 +2,39 @@
 
 let itemCounter = 1;
 let editingQuotationId = null;
+let docFormDirty = false;   // unsaved changes on the New / Edit Document form
 
-function switchView(view) {
+// Ask before leaving a document form with unsaved changes. Resolves true to leave.
+async function confirmLeaveDocForm() {
+    if (currentView !== 'new' || !docFormDirty) return true;
+    return confirmDialog({
+        title: L('discardTitle'), message: L('discardMsg'),
+        confirmLabel: L('discard'), cancelLabel: L('keepEditing'), danger: true,
+    });
+}
+
+function resetDocFormState() {
+    editingQuotationId = null;
+    docFormDirty = false;
+}
+
+// Wired to the form's oninput/onchange. Also clears a row's error outline once it's touched.
+function markDocDirty(event) {
+    docFormDirty = true;
+    event?.target?.closest?.('.item-row')?.classList.remove('has-error');
+}
+
+async function switchView(view) {
+    // Dashboard is Admin-only
+    if (view === 'dashboard' && sessionStorage.getItem('userRole') !== 'admin') view = 'bills';
+    // Re-selecting New Document while on it keeps the form; anything else leaves it.
+    if (view !== 'new' || currentView !== 'new') {
+        if (!(await confirmLeaveDocForm())) return;
+        if (currentView === 'new' || view === 'new') resetDocFormState();
+    }
     currentView = view;
     renderApp();
-    
+
     if (view === 'new') {
         setTimeout(() => {
             setupItemListeners();
@@ -14,59 +42,103 @@ function switchView(view) {
     }
 }
 
-function setupItemListeners() {
-    const itemRows = document.querySelectorAll('.item-row');
-    itemRows.forEach(row => {
-        const qty = row.querySelector('.item-qty');
-        const price = row.querySelector('.item-price');
-        const total = row.querySelector('.item-total');
-        
-        const updateItemTotal = () => {
-            const qtyVal = parseFloat(qty.value) || 0;
-            const priceVal = parseFloat(price.value) || 0;
-            const itemTotal = qtyVal * priceVal;
-            total.value = '฿' + fmt(itemTotal);
-            updatePreview();
-        };
-        
-        qty.addEventListener('input', updateItemTotal);
-        price.addEventListener('input', updateItemTotal);
-    });
+// Recompute one row's Amount. Wired inline (oninput) in itemRowMarkup so it
+// survives any re-render of the form.
+function recalcItemRow(row) {
+    const qtyVal = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const priceVal = parseFloat(row.querySelector('.item-price').value) || 0;
+    row.querySelector('.item-total').value = '฿' + fmt(qtyVal * priceVal);
 }
 
-function addItemRow() {
+function updateItemTotal(input) {
+    recalcItemRow(input.closest('.item-row'));
+    updatePreview();
+}
+
+// Resync every row's Amount and the summary (e.g. after programmatic fills).
+function setupItemListeners() {
+    document.querySelectorAll('.item-row').forEach(recalcItemRow);
+    if (document.getElementById('previewSubtotal')) updatePreview();
+}
+
+const ROW_SEL = '.item-row:not(.is-leaving)';
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function addItemRow(animate = true) {
     itemCounter++;
     const itemsList = document.getElementById('itemsList');
     const wrap = document.createElement('div');
     wrap.innerHTML = itemRowMarkup(itemCounter).trim();
-    itemsList.appendChild(wrap.firstChild);
+    const row = wrap.firstChild;
+    if (animate) {
+        row.classList.add('row-enter');
+        row.addEventListener('animationend', () => row.classList.remove('row-enter'), { once: true });
+    }
+    itemsList.appendChild(row);
     setupItemListeners();
+    if (animate) row.querySelector('.item-name')?.focus({ preventScroll: true });
 }
 
 function removeItemRow(button) {
-    const itemsList = document.getElementById('itemsList');
-    const rows = itemsList.querySelectorAll('.item-row');
-    
-    if (rows.length > 1) {
-        button.closest('.item-row').remove();
-        updateItemNumbers();
-        updatePreview();
-    } else {
-        alert('⚠️ You must have at least one item!');
+    const rows = document.querySelectorAll(ROW_SEL);
+    if (rows.length <= 1) {
+        showNotification('⚠️ You must have at least one item');
+        return;
     }
+    const row = button.closest('.item-row');
+    row.classList.add('is-leaving');
+    updateItemNumbers();
+    updatePreview();
+
+    if (prefersReducedMotion()) { row.remove(); return; }
+    // Collapse from its measured height to 0, pulling the stack gap closed with it.
+    row.style.height = row.offsetHeight + 'px';
+    requestAnimationFrame(() => {
+        Object.assign(row.style, {
+            height: '0px', paddingTop: '0px', paddingBottom: '0px', borderWidth: '0px',
+            marginBottom: 'calc(-1 * var(--s3))', opacity: '0', transform: 'scale(.98)',
+        });
+    });
+    let done = false;
+    const finish = () => { if (!done) { done = true; row.remove(); } };
+    row.addEventListener('transitionend', e => { if (e.propertyName === 'height') finish(); });
+    setTimeout(finish, 400);
 }
 
 function updateItemNumbers() {
-    const itemRows = document.querySelectorAll('.item-row');
+    const itemRows = document.querySelectorAll(ROW_SEL);
     itemRows.forEach((row, index) => {
         const label = row.querySelector('.item-no');
-        if (label) label.textContent = `Item #${index + 1}`;
+        if (label) label.textContent = L('itemN') + (index + 1);
     });
     itemCounter = itemRows.length;
 }
 
-function updatePreview() {
-    const itemRows = document.querySelectorAll('.item-row');
+// Tween a ฿ amount from its last shown value to `value` (ease-out, ~450ms).
+function animateMoney(el, value, instant = false) {
+    if (!el) return;
+    const from = parseFloat(el.dataset.val) || 0;
+    el.dataset.val = value;
+    cancelAnimationFrame(el._raf);
+    if (instant || from === value || prefersReducedMotion()) {
+        el.textContent = '฿' + fmt(value);
+        el.classList.remove('is-ticking');
+        return;
+    }
+    const start = performance.now(), dur = 450;
+    el.classList.add('summary-num', 'is-ticking');
+    const step = now => {
+        const t = Math.min(1, (now - start) / dur);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = '฿' + fmt(from + (value - from) * eased);
+        if (t < 1) el._raf = requestAnimationFrame(step);
+        else el.classList.remove('is-ticking');
+    };
+    el._raf = requestAnimationFrame(step);
+}
+
+function updatePreview(instant = false) {
+    const itemRows = document.querySelectorAll(ROW_SEL);
     let subtotal = 0;
     
     itemRows.forEach(row => {
@@ -79,91 +151,145 @@ function updatePreview() {
     const tax = vatChecked ? subtotal * 0.07 : 0;
     const total = subtotal + tax;
 
-    document.getElementById('previewSubtotal').textContent = '฿' + fmt(subtotal);
-    document.getElementById('previewTax').textContent = '฿' + fmt(tax);
-    document.getElementById('previewTotal').textContent = '฿' + fmt(total);
+    animateMoney(document.getElementById('previewSubtotal'), subtotal, instant);
+    animateMoney(document.getElementById('previewTax'), tax, instant);
+    animateMoney(document.getElementById('previewTotal'), total, instant);
+    animateMoney(document.getElementById('dockTotal'), total, instant);
+}
+
+// ── Document form state ───────────────────────────────────────
+// One shape for reading and filling the form. Edit uses it to load a document,
+// and renderApp uses it to snapshot and restore the form so a re-render
+// (language, theme, live sync, new customer) never loses what was typed.
+function captureDocForm() {
+    const form = document.getElementById('docForm');
+    if (!form) return null;
+    const val = id => document.getElementById(id)?.value ?? '';
+    const rows = [...form.querySelectorAll(ROW_SEL)];
+    const active = document.activeElement;
+    let focus = null;
+    if (active && form.contains(active)) {
+        const row = active.closest('.item-row');
+        focus = row ? { row: rows.indexOf(row), cls: active.classList[0] } : { id: active.id };
+    }
+    return {
+        docType: form.querySelector('input[name="docType"]:checked')?.value || 'bill',
+        date: val('docDate'),
+        customer: val('customerName'),
+        customerEmail: val('customerEmail'),
+        customerAddress: val('customerAddress'),
+        taxId: val('taxId'),
+        notes: val('notes'),
+        vat: document.getElementById('applyVat')?.checked !== false,
+        items: rows.map(row => ({
+            name: row.querySelector('.item-name').value,
+            description: row.querySelector('.item-description').value,
+            qty: row.querySelector('.item-qty').value,
+            price: row.querySelector('.item-price').value,
+        })),
+        focus,
+    };
+}
+
+function fillDocForm(d) {
+    selectDocType(d.docType || 'bill');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    if (d.date) set('docDate', d.date);
+    set('customerName', d.customer);
+    set('customerEmail', d.customerEmail);
+    set('customerAddress', d.customerAddress);
+    set('taxId', d.taxId);
+    set('notes', d.notes);
+    const vat = document.getElementById('applyVat');
+    if (vat) vat.checked = d.vat !== false;
+
+    const itemsList = document.getElementById('itemsList');
+    itemsList.innerHTML = '';
+    itemCounter = 0;
+    (d.items && d.items.length ? d.items : [{}]).forEach(item => {
+        addItemRow(false);
+        const row = itemsList.lastElementChild;
+        row.querySelector('.item-name').value = item.name ?? '';
+        row.querySelector('.item-description').value = item.description ?? '';
+        row.querySelector('.item-qty').value = item.qty ?? 1;
+        row.querySelector('.item-price').value = item.price ?? '';
+        recalcItemRow(row);
+    });
+    updateCustomerHint();
+    updatePreview(true);
+
+    if (d.focus) {
+        const el = d.focus.id
+            ? document.getElementById(d.focus.id)
+            : itemsList.children[d.focus.row]?.querySelector('.' + d.focus.cls);
+        el?.focus({ preventScroll: true });
+    }
 }
 
 function submitQuotation(event) {
     event.preventDefault();
-    
-    const customerName = document.getElementById('customerName').value;
-    const customerEmail = document.getElementById('customerEmail')?.value || '';
-    const customerAddress = document.getElementById('customerAddress')?.value || '';
-    const taxId = document.getElementById('taxId')?.value || '';
-    
-    // Get selected document type
-    const docType = document.querySelector('input[name="docType"]:checked')?.value || 'bill';
-    const notes = document.getElementById('notes')?.value || '';
-    
+    const d = captureDocForm();
+    if (!d) return;
+
+    // Every row needs a name, qty ≥ 1 and a price (0 is a valid price, e.g. a free service).
     const items = [];
-    const itemRows = document.querySelectorAll('.item-row');
-    
-    itemRows.forEach(row => {
-        const name = row.querySelector('.item-name').value;
-        const description = row.querySelector('.item-description')?.value || '';
-        const qty = parseFloat(row.querySelector('.item-qty').value);
-        const price = parseFloat(row.querySelector('.item-price').value);
-        
-        if (name && qty && price) {
-            items.push({ 
-                name, 
-                description,  // NEW: Save description
-                qty, 
-                price 
-            });
-        }
+    let invalid = 0;
+    document.querySelectorAll(ROW_SEL).forEach((row, i) => {
+        const it = d.items[i];
+        const name = it.name.trim();
+        const qty = parseFloat(it.qty);
+        const price = parseFloat(it.price);
+        const ok = !!name && qty > 0 && Number.isFinite(price) && price >= 0;
+        row.classList.toggle('has-error', !ok);
+        if (ok) items.push({ name, description: it.description.trim(), qty, price });
+        else invalid++;
     });
-    
-    if (items.length === 0) {
-        alert('⚠️ Please add at least one item!');
+    if (invalid || !items.length) {
+        showNotification('⚠️ ' + L('fixItems'));
+        document.querySelector('.item-row.has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
-    
-    const subtotal = items.reduce((sum, item) => sum + (item.qty * item.price), 0);
-    const vatChecked = document.getElementById('applyVat')?.checked !== false;
-    const tax = vatChecked ? subtotal * 0.07 : 0;
-    const total = subtotal + tax;
-    
+
+    const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    const subtotal = round2(items.reduce((sum, item) => sum + (item.qty * item.price), 0));
+    const tax = d.vat ? round2(subtotal * 0.07) : 0;
+    const total = round2(subtotal + tax);
+
+    const fields = {
+        date: d.date || localDateISO(),
+        customer: d.customer.trim(),
+        customerEmail: d.customerEmail.trim(),
+        customerAddress: d.customerAddress.trim(),
+        taxId: d.taxId.trim(),
+        docType: d.docType,
+        items, subtotal, tax, total,
+        vat: d.vat,
+        notes: d.notes,
+    };
+    const count = getLang() === 'th' ? `${items.length} รายการ` : `${items.length} item${items.length > 1 ? 's' : ''}`;
+    const detail = id => `${id} · ${count} · ฿${fmt(total)}`;
+    const who = sessionStorage.getItem('userEmail');
+
     if (editingQuotationId) {
         const index = quotations.findIndex(q => q.id === editingQuotationId);
-        if (index !== -1) {
-            quotations[index] = {
-                ...quotations[index],
-                customer: customerName,
-                taxId: taxId,
-                items: items,
-                subtotal: subtotal,
-                tax: tax,
-                total: total
-            };
-            alert(`✅ Quotation updated successfully!\n\nID: ${editingQuotationId}\nItems: ${items.length}\nTotal: ฿${total}`);
-        }
-        editingQuotationId = null;
+        if (index === -1) { showNotification('❌ ' + L('notFound')); return; }
+        quotations[index] = { ...quotations[index], ...fields, updatedAt: new Date().toISOString(), updatedBy: who };
+        showNotification('✅ ' + L('docUpdated'), { detail: detail(editingQuotationId) });
     } else {
         const newQuotation = {
-            id: 'QT' + new Date().getTime(),
-            date: new Date().toISOString().split('T')[0],
-            customer: customerName,
-            customerEmail: customerEmail,
-            customerAddress: customerAddress,
-            taxId: taxId,
-            docType: docType,
-            items: items,
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
-            notes: notes,
+            id: 'DOC-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4),
+            ...fields,
             status: 'draft',
-            createdBy: sessionStorage.getItem('userEmail')
+            createdBy: who,
+            createdAt: new Date().toISOString(),
         };
-        
         quotations.unshift(newQuotation);
-        alert(`✅ Quotation created successfully!\n\nID: ${newQuotation.id}\nItems: ${items.length}\nTotal: ฿${total}`);
+        showNotification('✅ ' + L('docCreated'), { detail: detail(newQuotation.id) });
     }
-    
+
     saveToLocalStorage();
     syncToFirebase();
+    resetDocFormState();
     itemCounter = 1;
     switchView('bills');
 }
@@ -171,70 +297,203 @@ function submitQuotation(event) {
 function editQuotation(id) {
     const q = quotations.find(x => x.id === id);
     if (!q) {
-        alert('❌ Quotation not found!');
+        showNotification('❌ ' + L('notFound'));
         return;
     }
-    
     editingQuotationId = id;
+    docFormDirty = false;
     currentView = 'new';
     renderApp();
-    
-    setTimeout(() => {
-        document.getElementById('manualCustomerFields')?.classList.remove('hidden');
-        document.getElementById('customerName').value = q.customer || '';
-        const taxEl = document.getElementById('taxId');
-        if (taxEl) taxEl.value = q.taxId || '';
-
-        const itemsList = document.getElementById('itemsList');
-        itemsList.innerHTML = '';
-        itemCounter = 0;
-
-        q.items.forEach((item, index) => {
-            addItemRow();
-            const rows = itemsList.querySelectorAll('.item-row');
-            const row = rows[index];
-            row.querySelector('.item-name').value = item.name;
-            if (item.description) row.querySelector('.item-description').value = item.description;
-            row.querySelector('.item-qty').value = item.qty;
-            row.querySelector('.item-price').value = item.price;
-            row.querySelector('.item-total').value = '฿' + fmt(item.qty * item.price);
-        });
-
-        setupItemListeners();
-        updatePreview();
-
-        const submitBtn = document.querySelector('button[type="submit"]');
-        if (submitBtn) submitBtn.textContent = 'Update Document';
-    }, 100);
+    // Older documents have no `vat` flag, so infer it from whether tax was charged.
+    fillDocForm({ ...q, vat: q.vat !== undefined ? q.vat : (q.tax || 0) > 0 });
+    window.scrollTo(0, 0);
 }
 
 function deleteQuotation(id) {
-    const q = quotations.find(x => x.id === id);
-    if (!q) {
-        alert('❌ Quotation not found!');
-        return;
-    }
-    
-    const confirmDelete = confirm(
-        `🗑️ Delete Quotation?\n\n` +
-        `ID: ${q.id}\n` +
-        `Customer: ${q.customer}\n` +
-        `Total: ฿${q.total}\n\n` +
-        `This action cannot be undone. Are you sure?`
-    );
-    
-    if (confirmDelete) {
-        quotations = quotations.filter(x => x.id !== id);
-        saveToLocalStorage();
-        syncToFirebase();
-        alert('✅ Quotation deleted successfully!');
-        renderApp();
-    }
+    removeWithUndo('quotations', id, L('docDeleted'));
 }
+
+// ── Delete with Undo (soft delete) ────────────────────────────
+// Deletes happen immediately from the user's point of view, but the record is
+// archived, not erased (see SOFT DELETE & ARCHIVE below). The notification
+// offers Undo, which restores it to its old position. Lists are read through
+// getters because live sync can replace the arrays at any time.
+const DATA_LISTS = {
+    quotations:     { get: () => quotations,     set: v => { quotations = v; },     persist: () => { saveToLocalStorage(); syncToFirebase(); } },
+    customers:      { get: () => customers,      set: v => { customers = v; },      persist: () => { localStorage.setItem('customers', JSON.stringify(customers)); syncCustomersToFirebase(); } },
+    products:       { get: () => products,       set: v => { products = v; },       persist: () => { localStorage.setItem('products', JSON.stringify(products)); syncProductsToFirebase(); } },
+    purchaseOrders: { get: () => purchaseOrders, set: v => { purchaseOrders = v; }, persist: () => { saveToLocalStorage(); syncPOsToFirebase(); } },
+    poCosts:        { get: () => poCosts,        set: v => { poCosts = v; },        persist: () => { saveToLocalStorage(); syncCostsToFirebase(); } },
+    materialPrices: { get: () => materialPrices, set: v => { materialPrices = v; }, persist: () => { saveToLocalStorage(); syncMaterialPricesToFirebase(); } },
+};
+
+function removeWithUndo(listName, id, message, refresh = renderApp) {
+    const list = DATA_LISTS[listName];
+    const current = list.get();
+    const index = current.findIndex(x => x.id === id);
+    if (index === -1) return;
+
+    archiveRecords(listName, [current[index]], 'deleted');
+    list.set(current.filter(x => x.id !== id));
+    list.persist();
+    refresh();
+
+    showNotification('✅ ' + message, {
+        action: {
+            label: L('undo'),
+            onClick: () => {
+                if (restoreRecord(listName, id, index)) {
+                    refresh();
+                    showNotification('✅ ' + L('restored'));
+                }
+            },
+        },
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOFT DELETE & ARCHIVE
+// ═══════════════════════════════════════════════════════════════
+// Nothing is ever erased. Deleting a record, or archiving old closed records,
+// moves it out of its live list into archive/<list>/<id>, stamped with
+// inactiveAt / inactiveBy / inactiveReason ('deleted' | 'archived').
+// The live lists the app downloads on start-up stay small; the archive is
+// only fetched on demand (Admin → Archive) and any record can be restored.
+let archive = {};            // { quotations: { [id]: record }, ... } — fetched or written this session
+let archiveLoaded = false;
+let archiveMonths = 12;      // age cut-off for "archive old records"
+let archiveFilter = 'all';   // 'all' | 'deleted' | 'archived'
+
+const ARCHIVE_LISTS = ['quotations', 'purchaseOrders', 'customers', 'products', 'poCosts', 'materialPrices'];
+const ARCHIVE_PAGE = 200;    // newest N per list, so the admin view stays fast as the archive grows
+
+// Without Firebase the archive lives in localStorage; with Firebase it lives in
+// the cloud only, so it never weighs down the browser's local copy.
+function saveArchiveLocal() {
+    if (isFirebaseEnabled) return;
+    try { localStorage.setItem('archive', JSON.stringify(archive)); } catch (e) { console.warn('archive save failed', e); }
+}
+
+function archiveRecords(listName, items, reason) {
+    const stamp = { inactiveAt: new Date().toISOString(), inactiveBy: sessionStorage.getItem('userEmail') || '', inactiveReason: reason };
+    const bucket = archive[listName] = archive[listName] || {};
+    const updates = {};
+    items.forEach(item => {
+        const rec = { ...JSON.parse(JSON.stringify(item)), ...stamp };  // JSON copy drops undefined, which Firebase rejects
+        bucket[item.id] = rec;
+        updates[item.id] = rec;
+    });
+    saveArchiveLocal();
+    if (!isFirebaseEnabled) return;
+    database.ref('archive/' + listName).update(updates).catch(e => {
+        // Usually means database.rules.json (with the archive node) isn't deployed.
+        // Put the records back so a failed archive write can never lose data.
+        console.warn('archive write failed', e);
+        items.forEach(item => restoreRecord(listName, item.id, 0, true));
+        renderApp();
+        showNotification('❌ ' + L('archiveFailed'));
+    });
+}
+
+// Moves an archived record back into its live list. `index` is where it goes
+// (Undo passes its old position); by default newest-first lists get it on top.
+function restoreRecord(listName, id, index, quiet = false) {
+    const rec = archive[listName] && archive[listName][id];
+    const list = DATA_LISTS[listName];
+    if (!rec || !list) return false;
+    if (list.get().some(x => x.id === id)) {
+        if (!quiet) showNotification('⚠️ ' + L('restoreClash'), { detail: id });
+        return false;
+    }
+    const { inactiveAt, inactiveBy, inactiveReason, ...item } = rec;
+    const next = list.get().slice();
+    const at = index != null ? index : (listName === 'quotations' || listName === 'purchaseOrders') ? 0 : next.length;
+    next.splice(Math.min(at, next.length), 0, item);
+    list.set(next);
+    list.persist();
+    delete archive[listName][id];
+    saveArchiveLocal();
+    if (isFirebaseEnabled && !quiet) database.ref('archive/' + listName + '/' + id).remove().catch(e => console.warn('archive remove failed', e));
+    return true;
+}
+
+// Fetch the newest ARCHIVE_PAGE records of each list. orderByChild + limitToLast
+// is a server-side query backed by the ".indexOn" rule, so this costs the same
+// whether the archive holds 200 records or 200,000.
+function loadArchive(force = false) {
+    if (archiveLoaded && !force) return Promise.resolve();
+    if (!isFirebaseEnabled) {
+        try { archive = JSON.parse(localStorage.getItem('archive') || '{}') || {}; } catch (e) { archive = {}; }
+        archiveLoaded = true;
+        return Promise.resolve();
+    }
+    return Promise.all(ARCHIVE_LISTS.map(listName =>
+        database.ref('archive/' + listName).orderByChild('inactiveAt').limitToLast(ARCHIVE_PAGE).once('value')
+            .then(snap => { archive[listName] = snap.val() || {}; })  // includes this session's pending writes
+            .catch(e => console.warn('archive load failed', listName, e))
+    )).then(() => { archiveLoaded = true; });
+}
+
+// The "dead data" query: closed records dated before the cut-off — approved or
+// rejected documents and completed purchase orders. Drafts, pending documents
+// and open POs are still being worked on, so they are never touched.
+function monthsAgoISO(months) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - months);
+    return localDateISO(d);
+}
+function findDeadRecords(months) {
+    const cutoff = monthsAgoISO(months);
+    return {
+        cutoff,
+        quotations: quotations.filter(q => (q.status === 'approved' || q.status === 'rejected') && (q.date || '') < cutoff),
+        purchaseOrders: purchaseOrders.filter(p => p.status === 'completed' && (p.date || '') < cutoff),
+    };
+}
+
+async function archiveOldRecords() {
+    const dead = findDeadRecords(archiveMonths);
+    const n = dead.quotations.length + dead.purchaseOrders.length;
+    if (!n) { showNotification(L('nothingToArchive')); return; }
+    const ok = await confirmDialog({
+        title: L('archiveTitle'),
+        message: L('archiveMsg').replace('{n}', n).replace('{date}', dead.cutoff),
+        confirmLabel: L('archiveBtn'),
+    });
+    if (!ok) return;
+
+    const poIds = new Set(dead.purchaseOrders.map(p => p.id));
+    const costs = poCosts.filter(c => poIds.has(c.poId));   // a PO's costs go with it
+    [['quotations', dead.quotations], ['purchaseOrders', dead.purchaseOrders], ['poCosts', costs]].forEach(([listName, recs]) => {
+        if (!recs.length) return;
+        const ids = new Set(recs.map(r => r.id));
+        archiveRecords(listName, recs, 'archived');
+        DATA_LISTS[listName].set(DATA_LISTS[listName].get().filter(r => !ids.has(r.id)));
+        DATA_LISTS[listName].persist();
+    });
+    renderApp();
+    showNotification('✅ ' + L('archivedMsg').replace('{n}', n), { detail: `${dead.quotations.length} docs · ${dead.purchaseOrders.length} POs` });
+}
+
+// Restore from the Archive tab. A PO brings back the costs that were archived with it.
+function restoreFromArchive(listName, id) {
+    if (!restoreRecord(listName, id)) return;
+    if (listName === 'purchaseOrders') {
+        Object.values(archive.poCosts || {})
+            .filter(c => c.poId === id && c.inactiveReason === 'archived')
+            .forEach(c => restoreRecord('poCosts', c.id));
+    }
+    renderApp();
+    showNotification('✅ ' + L('restored'), { detail: id });
+}
+
+function setArchiveMonths(m) { archiveMonths = Number(m) || 12; renderApp(); }
+function setArchiveFilter(f) { archiveFilter = f; renderApp(); }
+function refreshArchive() { loadArchive(true).then(renderApp); }
 
 function viewQuotation(id) {
     const q = quotations.find(x => x.id === id);
-    if (!q) { alert('Document not found!'); return; }
+    if (!q) { showNotification('❌ Document not found'); return; }
 
     const typeLabel = q.docType === 'tax-invoice' ? 'Tax Invoice' : q.docType === 'invoice' ? 'Invoice' : 'Bill';
 
@@ -330,7 +589,7 @@ function exportGroup(key) {
     });
     
     if (items.length === 0) {
-        alert('❌ No quotations found in this group!');
+        showNotification('❌ No documents found in this group');
         return;
     }
     
@@ -349,102 +608,73 @@ function exportGroup(key) {
     a.click();
     window.URL.revokeObjectURL(url);
     
-    alert('✅ CSV exported successfully!\n\nFile: group_' + key + '_export.csv\nRecords: ' + items.length);
+    showNotification('✅ CSV exported', { detail: 'group_' + key + '_export.csv · ' + items.length + ' records' });
 }
 
 // ========== WORKFLOW FUNCTIONS ==========
 
-function submitForApproval(quotationId) {
-    if (!confirm('ต้องการส่งใบเสนอราคานี้เพื่อขออนุมัติหรือไม่?')) return;
-    
+// Shared tail for every status change: save, sync, redraw, confirm.
+function commitWorkflow(message) {
+    saveToLocalStorage();
+    syncToFirebase();
+    renderApp();
+    showNotification(message);
+}
+
+async function submitForApproval(quotationId) {
     const quotation = quotations.find(q => q.id === quotationId);
-    if (!quotation) {
-        alert('ไม่พบใบเสนอราคา');
-        return;
-    }
-    
+    if (!quotation) { showNotification('❌ ' + L('notFound')); return; }
+    if (!(await confirmDialog({ title: L('submitTitle'), message: `${quotation.id} · ${quotation.customer}`, confirmLabel: L('submit') }))) return;
+
     quotation.status = 'pending';
     quotation.submittedAt = new Date().toISOString();
     quotation.submittedBy = sessionStorage.getItem('userEmail');
-    
-    saveToLocalStorage();
-    syncToFirebase();
-    renderApp();
-    
-    showNotification('✅ ส่งใบเสนอราคาเรียบร้อยแล้ว รอการอนุมัติ');
+    commitWorkflow('✅ ' + L('submittedMsg'));
 }
 
-function approveQuotation(quotationId) {
-    if (!confirm('ต้องการอนุมัติใบเสนอราคานี้หรือไม่?')) return;
-    
+async function approveQuotation(quotationId) {
     const quotation = quotations.find(q => q.id === quotationId);
-    if (!quotation) {
-        alert('ไม่พบใบเสนอราคา');
-        return;
-    }
-    
+    if (!quotation) { showNotification('❌ ' + L('notFound')); return; }
+    if (!(await confirmDialog({ title: L('approveTitle'), message: `${quotation.id} · ${quotation.customer} · ฿${fmt(quotation.total)}`, confirmLabel: L('approve') }))) return;
+
     quotation.status = 'approved';
     quotation.approvedAt = new Date().toISOString();
     quotation.approvedBy = sessionStorage.getItem('userEmail');
-    
-    saveToLocalStorage();
-    syncToFirebase();
-    renderApp();
-    
-    showNotification('✅ อนุมัติใบเสนอราคาเรียบร้อยแล้ว');
+    commitWorkflow('✅ ' + L('approvedMsg'));
 }
 
-function rejectQuotation(quotationId) {
-    const reason = prompt('เหตุผลในการไม่อนุมัติ:');
-    if (!reason) return;
-    
+async function rejectQuotation(quotationId) {
     const quotation = quotations.find(q => q.id === quotationId);
-    if (!quotation) {
-        alert('ไม่พบใบเสนอราคา');
-        return;
-    }
-    
+    if (!quotation) { showNotification('❌ ' + L('notFound')); return; }
+    const reason = await confirmDialog({
+        title: L('rejectTitle'), message: `${quotation.id} · ${quotation.customer}`,
+        confirmLabel: L('reject'), danger: true, input: { label: L('rejectReason') },
+    });
+    if (!reason) return;
+
     quotation.status = 'rejected';
     quotation.rejectedAt = new Date().toISOString();
     quotation.rejectedBy = sessionStorage.getItem('userEmail');
     quotation.rejectionReason = reason;
-    
-    saveToLocalStorage();
-    syncToFirebase();
-    renderApp();
-    
-    showNotification('❌ ไม่อนุมัติใบเสนอราคา: ' + reason);
+    commitWorkflow('❌ ' + L('rejectedMsg'));
 }
 
-function redoQuotation(quotationId) {
-    if (!confirm('Send back to Sales for revision?')) return;
-    
+async function redoQuotation(quotationId) {
     const quotation = quotations.find(q => q.id === quotationId);
-    if (!quotation) {
-        alert('Quotation not found');
-        return;
-    }
-    
+    if (!quotation) { showNotification('❌ ' + L('notFound')); return; }
+    if (!(await confirmDialog({ title: L('redoTitle'), message: `${quotation.id} · ${quotation.customer}`, confirmLabel: L('sendBack') }))) return;
+
     quotation.status = 'draft';
     quotation.redoAt = new Date().toISOString();
     quotation.redoBy = sessionStorage.getItem('userEmail');
-    
-    saveToLocalStorage();
-    syncToFirebase();
-    renderApp();
-    
-    showNotification('🔄 Document sent back to Sales for revision');
+    commitWorkflow(L('sentBackMsg'));
 }
 
-function fixAndResubmit(quotationId) {
-    if (!confirm('Mark this as fixed and resubmit for approval?')) return;
-    
+async function fixAndResubmit(quotationId) {
     const quotation = quotations.find(q => q.id === quotationId);
-    if (!quotation) {
-        alert('Quotation not found');
-        return;
-    }
-    
+    if (!quotation) { showNotification('❌ ' + L('notFound')); return; }
+    if (!(await confirmDialog({ title: L('resubmitTitle'), message: `${quotation.id} · ${quotation.customer}`, confirmLabel: L('resubmit') }))) return;
+
     // Clear rejection info and set to pending
     quotation.status = 'pending';
     quotation.resubmittedAt = new Date().toISOString();
@@ -455,15 +685,10 @@ function fixAndResubmit(quotationId) {
         rejectedBy: quotation.rejectedBy,
         rejectedAt: quotation.rejectedAt
     };
-    
-    saveToLocalStorage();
-    syncToFirebase();
-    renderApp();
-    
-    showNotification('✅ Document resubmitted for approval!');
+    commitWorkflow('✅ ' + L('resubmittedMsg'));
 }
 
-// Get action buttons based on user role and quotation status
+
 
 
 function toggleTaxIdRequired() {
@@ -480,30 +705,33 @@ function toggleTaxIdRequired() {
     }
 }
 
-function showAddCustomerModal() {
+function showAddCustomerModal(editId, prefill) {
     if (document.getElementById('customerModal')) return;
+    const c = (editId && customers.find(x => x.id === editId)) || null;
+    const p = c || prefill || {};
+    const isCompany = p.type === 'company' || (!c && !!p.taxId);
     const modal = `
     <div id="customerModal" class="scrim" onclick="if(event.target.id==='customerModal')closeCustomerModal()">
       <div class="sheet" style="max-width:480px;">
         <div class="sheet-head">
-          <div class="h">${L('addCustomer')}</div>
+          <div class="h">${L(c ? 'editCustomer' : 'addCustomer')}</div>
           <button class="sheet-x" onclick="closeCustomerModal()">${icon('x','')}</button>
         </div>
-        <form onsubmit="saveCustomer(event)" class="sheet-body">
+        <form onsubmit="saveCustomer(event)" class="sheet-body" data-edit-id="${c ? esc(c.id) : ''}">
           <div class="field">
             <span class="field-label">${L('customerType')} *</span>
             <div class="doctype" style="grid-template-columns:1fr 1fr;">
-              <label><input type="radio" name="customerType" value="individual" checked onchange="toggleTaxIdRequired()"><span class="dt-t">${L('individual')}</span></label>
-              <label><input type="radio" name="customerType" value="company" onchange="toggleTaxIdRequired()"><span class="dt-t">${L('company')}</span></label>
+              <label><input type="radio" name="customerType" value="individual" ${isCompany ? '' : 'checked'} onchange="toggleTaxIdRequired()"><span class="dt-t">${L('individual')}</span></label>
+              <label><input type="radio" name="customerType" value="company" ${isCompany ? 'checked' : ''} onchange="toggleTaxIdRequired()"><span class="dt-t">${L('company')}</span></label>
             </div>
           </div>
-          <div class="field"><span class="field-label">${L('nameStar')} *</span><input id="custName" class="input" required placeholder="${L('nameStar')}"></div>
+          <div class="field"><span class="field-label">${L('nameStar')} *</span><input id="custName" class="input" required placeholder="${L('nameStar')}" value="${esc(p.name)}"></div>
           <div class="grid-2">
-            <div class="field"><span class="field-label">${L('email')}</span><input id="custEmail" type="email" class="input" placeholder="email@example.com"></div>
-            <div class="field"><span class="field-label">${L('phone')}</span><input id="custPhone" class="input" placeholder="0X-XXX-XXXX"></div>
+            <div class="field"><span class="field-label">${L('email')}</span><input id="custEmail" type="email" class="input" placeholder="email@example.com" value="${esc(p.email)}"></div>
+            <div class="field"><span class="field-label">${L('phone')}</span><input id="custPhone" class="input" placeholder="0X-XXX-XXXX" value="${esc(p.phone)}"></div>
           </div>
-          <div class="field"><span class="field-label">${L('taxId')} <span id="taxIdStar" class="hidden">*</span></span><input id="custTaxId" class="input" placeholder="0-1234-56789-01-2"></div>
-          <div class="field"><span class="field-label">${L('address')}</span><textarea id="custAddress" rows="2" class="textarea" placeholder="Street, City, Postal Code"></textarea></div>
+          <div class="field"><span class="field-label">${L('taxId')} <span id="taxIdStar" class="${isCompany ? '' : 'hidden'}">*</span></span><input id="custTaxId" class="input" placeholder="0-1234-56789-01-2" ${isCompany ? 'required' : ''} value="${esc(p.taxId)}"></div>
+          <div class="field"><span class="field-label">${L('address')}</span><textarea id="custAddress" rows="2" class="textarea" placeholder="${esc(L('addressPh'))}">${esc(p.address)}</textarea></div>
           <div class="sheet-foot" style="padding:0;">
             <button type="submit" class="btn btn-primary btn-block">${L('saveDocument2')}</button>
             <button type="button" class="btn btn-secondary" onclick="closeCustomerModal()">${L('cancel')}</button>
@@ -512,63 +740,55 @@ function showAddCustomerModal() {
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modal);
+    document.getElementById('custName')?.focus();
 }
 
 function closeCustomerModal() {
-    const modal = document.getElementById('customerModal');
-    if (modal) modal.remove();
-    const sel = document.getElementById('customerSelect');
-    if (sel && sel.value === '__new__') sel.value = '';
+    document.getElementById('customerModal')?.remove();
 }
 
 function saveCustomer(event) {
     event.preventDefault();
-    
-    const newCustomer = {
-        id: 'CUST' + Date.now(),
-        name: document.getElementById('custName').value,
-        email: document.getElementById('custEmail').value,
-        phone: document.getElementById('custPhone').value,
-        address: document.getElementById('custAddress').value,
-        taxId: document.getElementById('custTaxId').value,
+
+    const editId = event.target.dataset.editId;
+    const fields = {
+        name: document.getElementById('custName').value.trim(),
+        email: document.getElementById('custEmail').value.trim(),
+        phone: document.getElementById('custPhone').value.trim(),
+        address: document.getElementById('custAddress').value.trim(),
+        taxId: document.getElementById('custTaxId').value.trim(),
         type: document.querySelector('input[name="customerType"]:checked').value
     };
-    
-    customers.push(newCustomer);
+
+    const existing = editId && customers.find(c => c.id === editId);
+    if (existing) {
+        Object.assign(existing, fields);
+    } else {
+        customers.push({ id: 'CUST' + Date.now(), ...fields });
+    }
     localStorage.setItem('customers', JSON.stringify(customers));
     syncCustomersToFirebase();
-    
-    closeCustomerModal();
-    renderApp();
-    
-    showNotification('✅ Customer added successfully!');
-}
 
-function viewCustomer(id) {
-    const customer = customers.find(c => c.id === id);
-    if (!customer) return;
-    
-    alert(`Customer Details:\n\nName: ${customer.name}\nType: ${customer.type}\nEmail: ${customer.email}\nPhone: ${customer.phone}\nAddress: ${customer.address}\nTax ID: ${customer.taxId || 'N/A'}`);
+    closeCustomerModal();
+    renderApp();   // on the document form this keeps what was typed (see captureDocForm)
+
+    showNotification(existing ? '✅ Customer updated!' : '✅ Customer added successfully!');
 }
 
 function editCustomer(id) {
-    alert('Edit customer feature coming soon!');
+    if (!customers.some(c => c.id === id)) return;
+    closeCustomerPanel();
+    showAddCustomerModal(id);
 }
 
 function deleteCustomer(id) {
-    if (!confirm('Delete this customer?')) return;
-    
-    customers = customers.filter(c => c.id !== id);
-    localStorage.setItem('customers', JSON.stringify(customers));
-    syncCustomersToFirebase();
-    renderApp();
-    
-    showNotification('✅ Customer deleted!');
+    closeCustomerPanel();
+    removeWithUndo('customers', id, L('customerDeleted'));
 }
 
 function syncCustomersToFirebase() {
     if (isFirebaseEnabled && database) {
-        database.ref('customers').set(customers);
+        database.ref('customers').set(customers).catch(e => console.warn('customers sync error', e));
     }
 }
 
@@ -582,53 +802,66 @@ function loadCustomersFromStorage() {
 // Load customers on startup
 loadCustomersFromStorage();
 
-// Fill customer info when selected from dropdown
-function fillCustomerInfo() {
-    const select = document.getElementById('customerSelect');
-    const customerId = select.value;
-    const manualFields = document.getElementById('manualCustomerFields');
-    
-    if (customerId === '__new__') {
-        // Show add customer modal
-        showAddCustomerModal();
-        select.value = '';
-        return;
-    }
-    
-    if (!customerId) {
-        // Show manual fields if no customer selected
-        manualFields?.classList.remove('hidden');
-        document.getElementById('customerName').value = '';
-        document.getElementById('customerEmail').value = '';
-        document.getElementById('customerAddress').value = '';
-        document.getElementById('taxId').value = '';
-        return;
-    }
-    
-    // Find customer and fill fields
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-        manualFields?.classList.add('hidden');
-        document.getElementById('customerName').value = customer.name;
-        document.getElementById('customerEmail').value = customer.email || '';
-        document.getElementById('customerAddress').value = customer.address || '';
-        document.getElementById('taxId').value = customer.taxId || '';
-    }
+// Customer box on the document form: type freely, or pick an existing customer
+// from the suggestions. An exact name match fills in the rest of their details.
+function findCustomerByName(name) {
+    const key = (name || '').trim().toLowerCase();
+    return key ? customers.find(c => (c.name || '').trim().toLowerCase() === key) : null;
 }
 
-// Fill product info when selected from dropdown
-function fillProductInfo(selectElement) {
-    const productId = selectElement.value;
-    if (!productId) return;
-    
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    const row = selectElement.closest('.item-row');
-    row.querySelector('.item-name').value = product.name;
-    row.querySelector('.item-description').value = product.description;
-    row.querySelector('.item-price').value = product.price;
-    
+function fillCustomerInfo(input) {
+    const c = findCustomerByName(input.value);
+    if (c) {
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+        set('customerEmail', c.email);
+        set('customerAddress', c.address);
+        set('taxId', c.taxId);
+    }
+    updateCustomerHint();
+}
+
+function updateCustomerHint() {
+    const hint = document.getElementById('customerHint');
+    if (!hint) return;
+    const name = document.getElementById('customerName')?.value.trim();
+    if (!name) { hint.innerHTML = ''; return; }
+    hint.innerHTML = findCustomerByName(name)
+        ? `<span class="hint-ok">${icon('check', '')}${L('existingCustomer')}</span>`
+        : `<button type="button" class="act act-primary" onclick="saveFormCustomer()">${icon('plus', '')}${L('saveAsCustomer')}</button>`;
+}
+
+// "Save as new customer" on the document form: open the customer sheet pre-filled.
+function saveFormCustomer() {
+    const v = id => document.getElementById(id)?.value.trim() || '';
+    showAddCustomerModal(null, { name: v('customerName'), email: v('customerEmail'), address: v('customerAddress'), taxId: v('taxId') });
+}
+
+// Suggestions for the item Name box: the product catalogue first, then items used
+// in earlier documents (most recent wins). Names are unique, case-insensitive.
+function itemSuggestions() {
+    const seen = new Map();
+    const add = (name, description, price) => {
+        const key = (name || '').trim().toLowerCase();
+        if (key && !seen.has(key)) seen.set(key, { name: name.trim(), description: description || '', price });
+    };
+    products.forEach(p => add(p.name, p.description, p.price));
+    quotations.forEach(q => (q.items || []).forEach(it => add(it.name, it.description, it.price)));
+    return [...seen.values()];
+}
+
+// When the typed Name exactly matches a suggestion, fill description and price.
+// Anything else is kept as a free-typed item.
+function fillProductInfo(nameInput) {
+    const key = nameInput.value.trim().toLowerCase();
+    if (!key) return;
+    const match = itemSuggestions().find(s => s.name.toLowerCase() === key);
+    if (!match) return;
+
+    const row = nameInput.closest('.item-row');
+    row.querySelector('.item-description').value = match.description;
+    if (match.price != null) row.querySelector('.item-price').value = match.price;
+
+    recalcItemRow(row);
     updatePreview();
 }
 
@@ -647,20 +880,22 @@ loadProductsFromStorage();
 
 // ========== PRODUCT MANAGEMENT ==========
 
-function showAddProductModal() {
+function showAddProductModal(editId) {
+    if (document.getElementById('productModal')) return;
+    const p = (editId && products.find(x => x.id === editId)) || null;
     const modal = `
     <div id="productModal" class="scrim" onclick="if(event.target.id==='productModal')closeProductModal()">
       <div class="sheet" style="max-width:460px;">
         <div class="sheet-head">
-          <div class="h">Add Product / Service</div>
+          <div class="h">${L(p ? 'editProductTitle' : 'addProduct')}</div>
           <button class="sheet-x" onclick="closeProductModal()">${icon('x','')}</button>
         </div>
-        <form onsubmit="saveProduct(event)" class="sheet-body">
-          <div class="field"><span class="field-label">${L('nameStar')} *</span><input type="text" id="prodName" class="input" required placeholder="e.g. Website Development"></div>
-          <div class="field"><span class="field-label">${L('descriptionLbl')}</span><textarea id="prodDesc" rows="2" class="textarea" placeholder="Brief description"></textarea></div>
+        <form onsubmit="saveProduct(event)" class="sheet-body" data-edit-id="${p ? esc(p.id) : ''}">
+          <div class="field"><span class="field-label">${L('nameStar')} *</span><input type="text" id="prodName" class="input" required placeholder="${esc(L('itemPh'))}" value="${p ? esc(p.name) : ''}"></div>
+          <div class="field"><span class="field-label">${L('descriptionLbl')}</span><textarea id="prodDesc" rows="2" class="textarea" placeholder="${esc(L('optionalDetail'))}">${p ? esc(p.description) : ''}</textarea></div>
           <div class="grid-2">
-            <div class="field"><span class="field-label">${L('unitPrice')} *</span><input type="number" id="prodPrice" class="input" required min="0" step="0.01" placeholder="0.00"></div>
-            <div class="field"><span class="field-label">Unit</span><input type="text" id="prodUnit" class="input" placeholder="e.g. hour, project" value="item"></div>
+            <div class="field"><span class="field-label">${L('unitPrice')} *</span><input type="number" id="prodPrice" class="input" required min="0" step="0.01" placeholder="0.00" value="${p ? esc(p.price) : ''}"></div>
+            <div class="field"><span class="field-label">${L('unit')}</span><input type="text" id="prodUnit" class="input" placeholder="${esc(L('unitPh'))}" value="${p ? esc(p.unit) : 'item'}"></div>
           </div>
           <div class="sheet-foot" style="padding:0;">
             <button type="submit" class="btn btn-primary btn-block">${L('saveDocument2')}</button>
@@ -670,6 +905,7 @@ function showAddProductModal() {
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modal);
+    document.getElementById('prodName')?.focus();
 }
 
 function closeProductModal() {
@@ -678,34 +914,33 @@ function closeProductModal() {
 
 function saveProduct(event) {
     event.preventDefault();
-    
-    const newProduct = {
-        id: 'PROD' + Date.now(),
-        name: document.getElementById('prodName').value,
-        description: document.getElementById('prodDesc').value,
+
+    const editId = event.target.dataset.editId;
+    const fields = {
+        name: document.getElementById('prodName').value.trim(),
+        description: document.getElementById('prodDesc').value.trim(),
         price: parseFloat(document.getElementById('prodPrice').value),
-        unit: document.getElementById('prodUnit').value || 'item'
+        unit: document.getElementById('prodUnit').value.trim() || 'item'
     };
-    
-    products.push(newProduct);
+
+    const existing = editId && products.find(p => p.id === editId);
+    if (existing) Object.assign(existing, fields);
+    else products.push({ id: 'PROD' + Date.now(), ...fields });
+
     localStorage.setItem('products', JSON.stringify(products));
-    
+    syncProductsToFirebase();
+
     closeProductModal();
     renderApp();
-    showNotification('✅ Product added!');
+    showNotification('✅ ' + L(existing ? 'productUpdated' : 'productAdded'));
 }
 
 function editProduct(id) {
-    alert('Edit feature coming soon!');
+    showAddProductModal(id);
 }
 
 function deleteProduct(id) {
-    if (!confirm('Delete this product?')) return;
-    
-    products = products.filter(p => p.id !== id);
-    localStorage.setItem('products', JSON.stringify(products));
-    renderApp();
-    showNotification('✅ Product deleted!');
+    removeWithUndo('products', id, L('productDeleted'));
 }
 
 // Fill product info when selected
@@ -714,169 +949,180 @@ function deleteProduct(id) {
 
 function generatePDF(quotationId) {
     const q = quotations.find(x => x.id === quotationId);
-    if (!q) { alert('Quotation not found!'); return; }
+    if (!q) { showNotification('❌ Document not found'); return; }
 
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pw = doc.internal.pageSize.width;
         const ph = doc.internal.pageSize.height;
-        const m = 20;
+        const m = 18;
+        const contentW = pw - 2 * m;
 
-        // --- HEADER BAR ---
-        doc.setFillColor(22, 35, 62);
-        doc.rect(0, 0, pw, 48, 'F');
+        // Sarabun renders Thai; fall back to Helvetica if the font module failed to load.
+        const FONT = (doc.getFontList && doc.getFontList().Sarabun) ? 'Sarabun' : 'helvetica';
+        const F = style => doc.setFont(FONT, style);
+        const nfmt = n => (typeof fmt === 'function')
+            ? fmt(n)
+            : (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const money = n => '฿' + nfmt(n);   // ฿1,234.56
+        const th = (typeof getLang === 'function' && getLang() === 'th');
 
-        doc.setFontSize(16);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont(undefined, 'bold');
-        doc.text(companyInfo.name, m, 16);
+        // ── minimal palette — ink on white, hairline rules ──
+        const INK = [26, 34, 48], MUTE = [122, 132, 150], HAIR = [214, 219, 227];
+        const setInk = () => doc.setTextColor(INK[0], INK[1], INK[2]);
+        const setMute = () => doc.setTextColor(MUTE[0], MUTE[1], MUTE[2]);
+        const hair = (yy, x1, x2) => {
+            doc.setDrawColor(HAIR[0], HAIR[1], HAIR[2]);
+            doc.setLineWidth(0.3);
+            doc.line(x1 == null ? m : x1, yy, x2 == null ? pw - m : x2, yy);
+        };
+        const fmtDate = iso => { try { return new Date(iso).toLocaleDateString(th ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return String(iso || ''); } };
+        F('normal');
 
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(148, 163, 184);
-        doc.text(companyInfo.address, m, 23);
-        doc.text('Tel: ' + companyInfo.phone + '  |  ' + companyInfo.email, m, 29);
-        doc.text('Tax ID: ' + companyInfo.taxId, m, 35);
+        const HEAD = th
+            ? ({ 'bill': 'ใบเสร็จรับเงิน', 'invoice': 'ใบแจ้งหนี้', 'tax-invoice': 'ใบกำกับภาษี' }[q.docType] || 'เอกสาร')
+            : getDocTypeLabel(q.docType);
+        const STAT = th
+            ? ({ draft: 'ฉบับร่าง', pending: 'รอการอนุมัติ', approved: 'อนุมัติแล้ว', rejected: 'ไม่อนุมัติ' }[q.status] || q.status)
+            : ({ draft: 'Draft', pending: 'Pending approval', approved: 'Approved', rejected: 'Rejected' }[q.status] || q.status);
+        const STAT_COLOR = ({ approved: [28, 122, 90], pending: [166, 105, 11], rejected: [194, 59, 59], draft: [122, 132, 150] }[q.status]) || MUTE;
 
-        const docLabel = getDocTypeLabel(q.docType).toUpperCase();
-        doc.setFontSize(22);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text(docLabel, pw - m, 20, { align: 'right' });
+        // ── HEADER ──────────────────────────────────────────────
+        doc.setFontSize(20); F('bold'); setInk();
+        doc.text(HEAD, m, 24);
 
-        const statusColors = { approved: [34, 197, 94], rejected: [239, 68, 68], pending: [234, 179, 8] };
-        const sc = statusColors[q.status] || statusColors.pending;
-        doc.setFillColor(sc[0], sc[1], sc[2]);
-        doc.roundedRect(pw - m - 28, 26, 28, 8, 2, 2, 'F');
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text(q.status.toUpperCase(), pw - m - 14, 31.5, { align: 'center' });
+        // company name, top-right — plain text, no logo mark
+        doc.setFontSize(9); F('normal'); setMute();
+        doc.text(doc.splitTextToSize(companyInfo.name || '', 76), pw - m, 15, { align: 'right' });
 
-        // --- INFO SECTION ---
-        const col2 = pw / 2 + 5;
+        // meta rows
+        let y = 34;
+        const metaRow = (label, value, valColor) => {
+            doc.setFontSize(8.5); F('normal'); setMute();
+            doc.text(label, m, y);
+            F('bold');
+            if (valColor) doc.setTextColor(valColor[0], valColor[1], valColor[2]); else setInk();
+            doc.text(String(value == null ? '' : value), m + 34, y);
+            y += 5.4;
+        };
+        metaRow(th ? 'เลขที่เอกสาร' : (q.docType === 'tax-invoice' ? 'Tax invoice no.' : q.docType === 'invoice' ? 'Invoice no.' : 'Document no.'), q.id);
+        metaRow(th ? 'วันที่' : 'Date', q.date);
+        metaRow(th ? 'สถานะ' : 'Status', STAT, STAT_COLOR);
 
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(m, 54, pw / 2 - m - 5, 30, 2, 2, 'F');
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(100, 116, 139);
-        doc.text('INVOICE DETAILS', m + 4, 61);
-        doc.setFontSize(9);
-        doc.setTextColor(30, 41, 59);
-        doc.setFont(undefined, 'normal');
-        doc.text('Invoice No:', m + 4, 68);
-        doc.setFont(undefined, 'bold');
-        doc.text(q.id, m + 30, 68);
-        doc.setFont(undefined, 'normal');
-        doc.text('Date:', m + 4, 75);
-        doc.setFont(undefined, 'bold');
-        doc.text(q.date, m + 30, 75);
-
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(col2, 54, pw - m - col2, 30, 2, 2, 'F');
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(100, 116, 139);
-        doc.text('BILL TO', col2 + 4, 61);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text(q.customer || '', col2 + 4, 68);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(71, 85, 105);
-        if (q.taxId) doc.text('Tax ID: ' + q.taxId, col2 + 4, 75);
-
-        // --- ITEMS TABLE ---
-        let y = 96;
-        doc.setFillColor(22, 35, 62);
-        doc.rect(m, y, pw - 2 * m, 9, 'F');
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text('DESCRIPTION', m + 4, y + 6);
-        doc.text('QTY', pw - m - 60, y + 6, { align: 'center' });
-        doc.text('UNIT PRICE', pw - m - 35, y + 6, { align: 'center' });
-        doc.text('AMOUNT', pw - m - 8, y + 6, { align: 'right' });
-
-        y += 12;
-        q.items.forEach((item, i) => {
-            const amt = item.qty * item.price;
-            if (i % 2 === 0) {
-                doc.setFillColor(248, 250, 252);
-                doc.rect(m, y - 5, pw - 2 * m, 9, 'F');
-            }
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(30, 41, 59);
-            doc.text(item.name, m + 4, y);
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(71, 85, 105);
-            doc.text(item.qty.toString(), pw - m - 60, y, { align: 'center' });
-            doc.text('THB ' + item.price, pw - m - 35, y, { align: 'center' });
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(30, 41, 59);
-            doc.text('THB ' + amt, pw - m - 8, y, { align: 'right' });
-            y += 10;
-        });
-
-        // --- TOTALS ---
-        y += 5;
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.line(m, y, pw - m, y);
-        y += 8;
-
-        const tx = pw - m - 55;
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(100, 116, 139);
-        doc.text('Subtotal:', tx, y);
-        doc.setTextColor(30, 41, 59);
-        doc.text('THB ' + q.subtotal, pw - m - 8, y, { align: 'right' });
-
-        y += 7;
-        const taxPct = q.taxRate || 7;
-        doc.setTextColor(100, 116, 139);
-        doc.text('Tax (' + taxPct + '%):', tx, y);
-        doc.setTextColor(30, 41, 59);
-        doc.text('THB ' + q.tax, pw - m - 8, y, { align: 'right' });
-
+        // statement line
         y += 4;
-        doc.setDrawColor(22, 35, 62);
-        doc.setLineWidth(0.5);
-        doc.line(tx, y, pw - m, y);
+        doc.setFontSize(13); F('bold'); setInk();
+        let stmt = money(q.total);
+        stmt += (q.status === 'approved' && q.approvedAt)
+            ? (th ? '  อนุมัติเมื่อ ' + fmtDate(q.approvedAt) : '  approved on ' + fmtDate(q.approvedAt))
+            : '  ·  ' + STAT;
+        doc.text(stmt, m, y);
+        y += 6;
 
+        if (q.notes) {
+            doc.setFontSize(8.5); F('normal'); setMute();
+            const nl = doc.splitTextToSize(String(q.notes), contentW).slice(0, 3);
+            doc.text(nl, m, y + 1);
+            y += nl.length * 4.3 + 2;
+        }
+
+        // ── FROM / BILL TO ─────────────────────────────────────
+        y += 6;
+        const colR = pw / 2 + 4;
+        doc.setFontSize(7); F('bold'); setMute();
+        doc.text(th ? 'ผู้ออกเอกสาร' : 'FROM', m, y);
+        doc.text(th ? 'ออกให้' : 'BILL TO', colR, y);
+
+        let ay = y + 5;
+        doc.setFontSize(9); F('bold'); setInk();
+        const cnL = doc.splitTextToSize(companyInfo.name || '', colR - m - 6);
+        doc.text(cnL, m, ay); ay += cnL.length * 4.6;
+        doc.setFontSize(8); F('normal'); setMute();
+        const caL = doc.splitTextToSize(companyInfo.address || '', colR - m - 6);
+        doc.text(caL, m, ay); ay += caL.length * 4;
+        if (companyInfo.phone) { doc.text((th ? 'โทร ' : 'Tel ') + companyInfo.phone, m, ay); ay += 4; }
+        if (companyInfo.email) { doc.text(companyInfo.email, m, ay); ay += 4; }
+        if (companyInfo.taxId) { doc.text((th ? 'เลขผู้เสียภาษี ' : 'Tax ID ') + companyInfo.taxId, m, ay); ay += 4; }
+
+        let by = y + 5;
+        doc.setFontSize(9); F('bold'); setInk();
+        const custL = doc.splitTextToSize(q.customer || '-', pw - m - colR);
+        doc.text(custL, colR, by); by += custL.length * 4.6;
+        doc.setFontSize(8); F('normal'); setMute();
+        if (q.customerAddress) { const xL = doc.splitTextToSize(String(q.customerAddress), pw - m - colR); doc.text(xL, colR, by); by += xL.length * 4; }
+        if (q.customerEmail) { doc.text(String(q.customerEmail), colR, by); by += 4; }
+        if (q.taxId) { doc.text((th ? 'เลขผู้เสียภาษี ' : 'Tax ID ') + q.taxId, colR, by); by += 4; }
+
+        y = Math.max(ay, by) + 9;
+
+        // ── LINE ITEMS ─────────────────────────────────────────
+        const cAmt = pw - m;
+        const cTax = cAmt - 22;
+        const cUnit = cTax - 27;
+        const cQty = cUnit - 16;
+        const nameW = cQty - 12 - m;
+
+        hair(y - 4);
+        doc.setFontSize(7); F('bold'); setMute();
+        doc.text(th ? 'รายละเอียด' : 'DESCRIPTION', m, y);
+        doc.text(th ? 'จำนวน' : 'QTY', cQty, y, { align: 'right' });
+        doc.text(th ? 'ราคา/หน่วย' : 'UNIT PRICE', cUnit, y, { align: 'right' });
+        doc.text(th ? 'ภาษี' : 'TAX', cTax, y, { align: 'right' });
+        doc.text(th ? 'จำนวนเงิน' : 'AMOUNT', cAmt, y, { align: 'right' });
+        y += 3;
+        hair(y);
+        y += 7;
+
+        const taxLabel = (Number(q.tax) || 0) > 0 ? (q.taxRate || 7) + '%' : '—';
+        (q.items || []).forEach(item => {
+            const amt = (Number(item.qty) || 0) * (Number(item.price) || 0);
+            const nameLines = doc.splitTextToSize(item.name || '-', nameW);
+            const descLines = item.description ? doc.splitTextToSize(String(item.description), nameW) : [];
+            doc.setFontSize(9); F('bold'); setInk();
+            doc.text(nameLines, m, y);
+            if (descLines.length) {
+                doc.setFontSize(7.5); F('normal'); setMute();
+                doc.text(descLines, m, y + nameLines.length * 4.4);
+            }
+            doc.setFontSize(8.5); F('normal'); setInk();
+            doc.text(String(item.qty), cQty, y, { align: 'right' });
+            doc.text(money(item.price), cUnit, y, { align: 'right' });
+            setMute(); doc.text(taxLabel, cTax, y, { align: 'right' });
+            setInk(); F('bold'); doc.text(money(amt), cAmt, y, { align: 'right' });
+            y += Math.max(7, nameLines.length * 4.4 + descLines.length * 4 + 3.5);
+        });
+        hair(y);
+
+        // ── SUMMARY ────────────────────────────────────────────
         y += 8;
-        doc.setFillColor(22, 35, 62);
-        doc.roundedRect(tx - 2, y - 6, pw - m - tx + 2, 11, 2, 2, 'F');
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text('TOTAL', tx + 2, y);
-        doc.setFontSize(11);
-        doc.text('THB ' + q.total, pw - m - 8, y, { align: 'right' });
+        const sx = pw - m - 74;
+        const sumRow = (label, value, opts) => {
+            opts = opts || {};
+            doc.setFontSize(opts.big ? 10.5 : 9);
+            F(opts.bold ? 'bold' : 'normal');
+            if (opts.bold) setInk(); else setMute();
+            doc.text(label, sx, y);
+            F('bold'); setInk();
+            doc.text(value, pw - m, y, { align: 'right' });
+            y += opts.big ? 8 : 6;
+        };
+        sumRow(th ? 'ยอดก่อนภาษี' : 'Subtotal', money(q.subtotal));
+        sumRow((th ? 'ภาษีมูลค่าเพิ่ม ' : 'VAT ') + (q.taxRate || 7) + '%', money(q.tax));
+        hair(y - 2, sx, pw - m);
+        y += 2;
+        sumRow(th ? 'ยอดรวมทั้งสิ้น' : 'Total', money(q.total), { bold: true, big: true });
 
-        // --- FOOTER ---
-        doc.setFillColor(248, 250, 252);
-        doc.rect(m + 28, ph - 38, pw - 2 * m - 28, 22, 'F');
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text('PAYMENT TERMS', m + 32, ph - 30);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(71, 85, 105);
-        doc.text('Payment due within 30 days of invoice date.  |  Valid for 15 days from issue date.', m + 32, ph - 24);
-
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.line(m, ph - 16, pw - m, ph - 16);
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text('Thank you for your business!', pw / 2, ph - 10, { align: 'center' });
+        // ── FOOTER ─────────────────────────────────────────────
+        const fy = ph - 33;
+        hair(fy - 7);
+        doc.setFontSize(7); F('bold'); setMute();
+        doc.text(th ? 'เงื่อนไขการชำระเงิน' : 'PAYMENT TERMS', m + 26, fy);
+        F('normal');
+        doc.text(th ? 'ชำระภายใน 30 วันนับจากวันที่ในเอกสาร' : 'Payment due within 30 days of the document date.', m + 26, fy + 4.6);
+        doc.text(companyInfo.name + (companyInfo.website ? '  ·  ' + companyInfo.website : ''), m + 26, fy + 9.2);
+        doc.setFontSize(7); setMute(); F('normal');
+        doc.text(th ? 'หน้า 1/1' : 'Page 1 of 1', pw - m, ph - 12, { align: 'right' });
 
         // --- QR CODE (rendered async, then save PDF) ---
         const qrUrl = `${window.location.origin}${window.location.pathname}?doc=${q.id}`;
@@ -889,16 +1135,16 @@ function generatePDF(quotationId) {
             try {
                 const qrImg = qrDiv.querySelector('img');
                 if (qrImg && qrImg.src) {
-                    doc.addImage(qrImg.src, 'PNG', m, ph - 52, 22, 22);
-                    doc.setFontSize(6);
-                    doc.setFont(undefined, 'normal');
-                    doc.setTextColor(100, 116, 139);
-                    doc.text(L('scanToOpen'), m + 11, ph - 28, { align: 'center' });
+                    doc.addImage(qrImg.src, 'PNG', m, ph - 40, 19, 19);
+                    doc.setFontSize(5.5);
+                    F('normal');
+                    doc.setTextColor(122, 132, 150);
+                    doc.text(L('scanToOpen'), m + 9.5, ph - 18.5, { align: 'center' });
                 }
             } catch(e) { console.log('QR embed skipped:', e); }
             document.body.removeChild(qrDiv);
-            doc.save('Invoice-' + q.id + '.pdf');
-            showNotification('PDF downloaded!');
+            doc.save(getDocTypeLabel(q.docType).replace(/\s+/g, '') + '-' + q.id + '.pdf');
+            showNotification(getLang() === 'th' ? 'ดาวน์โหลด PDF แล้ว' : 'PDF downloaded');
         };
 
         // Give QRCode.js 300ms to render the img
@@ -906,7 +1152,7 @@ function generatePDF(quotationId) {
 
     } catch (error) {
         console.error('PDF error:', error);
-        alert('Failed to generate PDF: ' + error.message);
+        showNotification('❌ Failed to generate PDF', { detail: error.message });
     }
 }
 
@@ -938,9 +1184,14 @@ function toggleRole() {
 function generatePOId() {
     const now = new Date();
     const date = now.toISOString().slice(0,10).replace(/-/g,'');
-    const existing = purchaseOrders.filter(p => p.id.startsWith('PO' + date));
-    const seq = String(existing.length + 1).padStart(3, '0');
-    return `PO${date}${seq}`;
+    // Next number after the highest used today (live or archived), so a deleted
+    // PO's number is never handed out again and a restore can't clash.
+    const prefix = 'PO' + date;
+    const used = purchaseOrders.map(p => p.id).concat(Object.keys(archive.purchaseOrders || {}))
+        .filter(id => id.startsWith(prefix))
+        .map(id => parseInt(id.slice(prefix.length), 10) || 0);
+    const seq = String(Math.max(0, ...used) + 1).padStart(3, '0');
+    return `${prefix}${seq}`;
 }
 
 function savePurchaseOrder() {
@@ -1010,10 +1261,10 @@ function updatePOStatus(id, newStatus) {
     showNotification('Status updated to ' + newStatus);
 }
 
-function convertPOToInvoice(id) {
+async function convertPOToInvoice(id) {
     const po = purchaseOrders.find(p => p.id === id);
     if (!po) return;
-    if (!confirm(`Convert PO ${po.id} to Invoice? This will create a new invoice and mark this PO as completed.`)) return;
+    if (!(await confirmDialog({ title: L('convertTitle'), message: `${po.id} · ${po.customer} — ${L('convertMsg')}`, confirmLabel: L('convertInvoice') }))) return;
 
     // Create invoice from PO
     const now = new Date();
@@ -1048,15 +1299,12 @@ function convertPOToInvoice(id) {
     closePOModal();
     currentView = 'bills';
     renderApp();
-    showNotification(`Invoice ${invoiceId} created from PO ${po.id}!`);
+    showNotification('✅ ' + L('invoiceCreated'), { detail: `${invoiceId} ← ${po.id}` });
 }
 
 function deletePO(id) {
-    if (!confirm('Delete this Purchase Order?')) return;
-    purchaseOrders = purchaseOrders.filter(p => p.id !== id);
-    syncPOsToFirebase();
-    renderApp();
-    showNotification('Purchase Order deleted');
+    closePOModal();
+    removeWithUndo('purchaseOrders', id, L('poDeleted'));
 }
 
 function syncPOsToFirebase() {
@@ -1274,11 +1522,12 @@ function addPOCost(poId) {
 }
 
 function deletePOCost(costId, poId) {
-    if (!confirm('Delete this cost entry?')) return;
-    poCosts = poCosts.filter(c => c.id !== costId);
-    syncCostsToFirebase();
-    closePOCostModal();
-    openPOCostPanel(poId);
+    // Refresh the cost panel if it's still open, otherwise the page behind it.
+    const refresh = () => {
+        if (document.getElementById('poCostModal')) { closePOCostModal(); openPOCostPanel(poId); }
+        else renderApp();
+    };
+    removeWithUndo('poCosts', costId, L('costDeleted'), refresh);
 }
 
 function closePOCostModal() {

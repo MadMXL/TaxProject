@@ -54,7 +54,9 @@ function loadFromLocalStorage() {
         load('purchaseOrders', d => purchaseOrders = d);
         load('poCosts',        d => poCosts = d);
         load('materialPrices', d => materialPrices = d);
-        load('companyInfo',    d => Object.assign(companyInfo, d));
+        // Only keep a stored company profile if it was saved against the current seed;
+        // otherwise a stale profile from an older build would shadow the new defaults.
+        load('companyInfo',    d => { if (d && d._seed === companyInfo._seed) Object.assign(companyInfo, d); });
         return true;
     } catch (e) {
         console.error('localStorage load failed:', e);
@@ -62,9 +64,11 @@ function loadFromLocalStorage() {
     return false;
 }
 
-window.addEventListener('beforeunload', () => {
+window.addEventListener('beforeunload', (e) => {
     saveToLocalStorage();
     syncToFirebase();
+    // Browser's own "Leave site?" prompt for an unsaved document form
+    if (currentView === 'new' && docFormDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
 // ── QR CODE URL HANDLER ──────────────────────────────────────
@@ -79,6 +83,15 @@ function checkQRParam() {
             const found = quotations.find(q => q.id === docId);
             if (found) {
                 viewQuotation(docId);
+            } else if (isFirebaseEnabled && /^[\w-]+$/.test(docId)) {
+                // A printed QR code can outlive the live record — say if it was archived or deleted.
+                database.ref('archive/quotations/' + docId).once('value')
+                    .then(snap => {
+                        const r = snap.val();
+                        showNotification(r ? `⚠️ ${docId} was ${r.inactiveReason} on ${String(r.inactiveAt).slice(0, 10)}` : 'Document not found: ' + docId,
+                            r ? { detail: 'Admin → Archive to restore it' } : {});
+                    })
+                    .catch(() => showNotification('Document not found: ' + docId));
             } else {
                 showNotification('Document not found: ' + docId);
             }

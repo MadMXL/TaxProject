@@ -1,4 +1,4 @@
-const CACHE_NAME = 'baigamgab-v2';
+const CACHE_NAME = 'baigamgab-v4';
 const urlsToCache = [
   '/index.html',
   '/login.html',
@@ -9,6 +9,7 @@ const urlsToCache = [
   '/js/ui.js',
   '/js/functions.js',
   '/js/app.js',
+  '/js/sarabun-font.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 

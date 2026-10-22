@@ -33,22 +33,17 @@ This URL is already in your `firebase-config.js` file!
 
 ### Step 3: Set Security Rules (IMPORTANT!)
 
-1. In Firebase Console, go to **Realtime Database**
-2. Click **"Rules"** tab
-3. Replace with these rules:
+Do **not** leave the database in test mode. Test-mode rules (`".read": true, ".write": true`)
+let anyone who reads `databaseURL` from this repo read, overwrite, or delete the whole
+database — no login needed.
 
-```json
-{
-  "rules": {
-    "quotations": {
-      ".read": true,
-      ".write": true
-    }
-  }
-}
-```
+1. In Firebase Console, go to **Realtime Database → Rules**
+2. Paste the contents of [`database.rules.json`](database.rules.json)
+3. Click **Publish**
 
-**Note:** These rules allow anyone to read/write. For production, you should add authentication!
+Those rules require a signed-in user for every path and stop a user from changing their
+own `role`. See [`SECURITY.md`](SECURITY.md) for the full checklist (rules + API-key
+restriction + authorized domains).
 
 ### Step 4: Test It!
 
@@ -92,27 +87,18 @@ Create Quotation → localStorage → Firebase Cloud
 3. **Real-time:** When someone else makes changes, you see them instantly!
 4. **Notifications:** Green notifications show when syncing
 
-## 🔐 Security (For Production):
+## 🔐 Security
 
-Current setup is in "test mode" - anyone can read/write.
+See [`SECURITY.md`](SECURITY.md). Short version:
 
-### To Secure (Later):
-
-1. Add Authentication (Email/Password or Google Sign-in)
-2. Update Firebase Rules:
-
-```json
-{
-  "rules": {
-    "quotations": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
-  }
-}
-```
-
-This requires users to login before accessing data.
+1. **The `apiKey` in the config is not a secret** — Firebase web keys are public by design
+   and safe to commit. GitHub's scanner still flags the `AIzaSy…` pattern; that alert is
+   expected and not the real risk.
+2. **The real risk is open database rules.** Publish [`database.rules.json`](database.rules.json)
+   (Realtime Database → Rules).
+3. **Restrict the API key** to your domains (Google Cloud Console → Credentials →
+   HTTP referrers).
+4. **Trim authorized domains** (Firebase Auth → Settings → Authorized domains).
 
 ## 🐛 Troubleshooting:
 

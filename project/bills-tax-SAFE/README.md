@@ -11,10 +11,18 @@ A simple billing and tax invoice management system for SMEs.
 
 - Dashboard with revenue overview
 - Group bills by date or customer
+- Combined filters: customer/supplier + date range + type + status + search
 - Create new quotations
 - Generate PDF invoices
-- Export data to CSV
+- Export the filtered list to CSV
+- Soft delete: deleted and old records move to an archive (Admin → Archive) and can be restored
 - Mobile responsive
+
+## Data
+
+- Every database node and field is described in [DATA-DICTIONARY.md](DATA-DICTIONARY.md).
+- Deploy [database.rules.json](database.rules.json) to Firebase (Realtime Database → Rules).
+  The archive (soft delete) only works once these rules are deployed.
 
 ## Project Structure
 
@@ -33,13 +41,14 @@ bills-tax-clean/
 ## Customization
 
 - **Change tax rate:** Edit `0.07` in `js/functions.js` (line 15 and 37)
-- **Change colors:** Modify Tailwind classes in `js/ui.js`
+- **Change colors:** Edit the design tokens at the top of `css/styles.css`
 - **Add company name:** Edit text in `js/ui.js` (line 8)
 
 ## Technologies
 
 - HTML5
-- CSS (Tailwind)
+- CSS (custom design tokens, no framework)
+- Firebase Realtime Database + Authentication
 - JavaScript (Vanilla)
 - jsPDF (PDF generation)
 

@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "quotations":     { ".read": "auth != null", ".write": "auth != null" },
+    "purchaseOrders": { ".read": "auth != null", ".write": "auth != null" },
+    "poCosts":        { ".read": "auth != null", ".write": "auth != null" },
+    "materialPrices": { ".read": "auth != null", ".write": "auth != null" },
+    "customers":      { ".read": "auth != null", ".write": "auth != null" },
+    "products":       { ".read": "auth != null", ".write": "auth != null" },
+
+    "archive": {
+      ".read": "auth != null",
+      "$list": {
+        ".write": "auth != null && ($list === 'quotations' || $list === 'purchaseOrders' || $list === 'poCosts' || $list === 'materialPrices' || $list === 'customers' || $list === 'products')",
+        ".indexOn": ["inactiveAt"],
+        "$id": {
+          ".validate": "newData.hasChildren(['id', 'inactiveAt', 'inactiveReason']) && (newData.child('inactiveReason').val() === 'deleted' || newData.child('inactiveReason').val() === 'archived')"
+        }
+      }
+    },
+
+    "companyInfo": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'manager')",
+
+        "role": {
+          ".validate": "newData.val() === 'admin' || newData.val() === 'manager' || newData.val() === 'sales' || newData.val() === 'technician'"
+        }
+      }
+    },
+
+    "$other": { ".read": false, ".write": false }
+  }
+}
