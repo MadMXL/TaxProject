@@ -141,6 +141,8 @@ const SYNCED_ARRAYS = [
   ['materialPrices', d => materialPrices = d],
   ['customers',      d => customers = d],
   ['products',       d => products = d],
+  ['stockItems',     d => stockItems = d],
+  ['stockMoves',     d => stockMoves = d],
 ];
 
 function loadFromFirebase() {

@@ -23,6 +23,8 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `materialPrices` | array | Price per unit per supplier, for comparison | Yes |
 | `customers` | array | Customer master data | Yes |
 | `products` | array | Product / service catalogue | Yes |
+| `stockItems` | array | Materials kept on hand, with minimum levels | Yes |
+| `stockMoves` | array | Every stock change (receive / use / count) | Yes |
 | `companyInfo` | object | Seller details printed on every document | Yes |
 | `users/{uid}` | object per user | Name, email and role of each account | Admin pages only |
 | `archive/{list}/{id}` | object keyed by record ID | Soft-deleted and archived records | **No**, only on demand |
@@ -125,6 +127,33 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `price` | number | Y | Default unit price. |
 | `unit` | string | N | e.g. `งาน`, `ชั่วโมง`. |
 
+## 6a. `stockItems` (Technician / Manager / Admin write)
+
+| Field | Type | Req | Example | Description / constraints |
+|---|---|---|---|---|
+| `id` | string | Y | `STK-005` | Primary key. `STK-` + 3-digit sequence after the highest in use. |
+| `name` | string | Y | `ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)` | Item name. Copied into each `stockMoves.itemName`. |
+| `category` | enum | Y | `steel` | `electrical` \| `steel` \| `construction` \| `maintenance` \| `other`. |
+| `unit` | string | Y | `กล่อง` | Unit of count. |
+| `qty` | number | Y | `0` | On hand, ≥ 0, 2 dp. Changed only by a stock move (or the opening balance when the item is created). |
+| `minQty` | number | Y | `3` | Minimum level, ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
+| `updatedBy` / `updatedAt` | string | N | | Last change to the item or its quantity. |
+
+## 6b. `stockMoves` (append-only log)
+
+| Field | Type | Req | Example | Description / constraints |
+|---|---|---|---|---|
+| `id` | string | Y | `MOV-1762414500000` | Primary key. `MOV-<timestamp>`. |
+| `itemId` | string | Y | `STK-005` | Foreign key → `stockItems.id`. |
+| `itemName` | string | Y | | Name at the time of the move (kept if the item is renamed or deleted). |
+| `type` | enum | Y | `out` | `in` (Receive, adds) \| `out` (Use, subtracts; cannot exceed `qty`) \| `count` (stock-take, sets `qty`). |
+| `qty` | number | Y | `2` | Amount moved, > 0. For `count`, the size of the correction. |
+| `after` | number | Y | `0` | `stockItems.qty` after this move. |
+| `jobId` | string | N | `PO20261015001` | Only for `out`. Foreign key → `purchaseOrders.id`. |
+| `note` | string | N | `งานโครงหลังคา` | Free text, ≤ 140 chars. |
+| `date` | string (date) | Y | `2026-11-06` | |
+| `at` / `by` | string | Y | | Timestamp and user email. |
+
 ## 7. `companyInfo` (single object, Admin-only write)
 
 `name`, `address`, `phone`, `email`, `taxId`, `website` (strings), plus `_seed` (number, a version marker for the default values).
@@ -141,7 +170,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 ## 9. `archive/{list}/{id}` — soft delete and archive
 
 When a record is deleted, or archived because it is old and closed, it is **moved** here, not erased.
-`{list}` is the node it came from (`quotations`, `purchaseOrders`, `poCosts`, `materialPrices`, `customers`, `products`) and `{id}` is the record's own `id`.
+`{list}` is the node it came from (`quotations`, `purchaseOrders`, `poCosts`, `materialPrices`, `customers`, `products`, `stockItems`) and `{id}` is the record's own `id`.
 The record keeps every original field and gains three more:
 
 | Field | Type | Req | Example | Description |
@@ -161,3 +190,17 @@ purchaseOrders where status = completed            and date < today − N months
 ```
 
 N is 3, 6, 12 (default) or 24. Drafts, pending documents and open POs are never archived.
+
+## 10. Monthly report (derived, not stored)
+
+The Monthly Report page and the Overview revenue figures are calculated from `quotations`; nothing extra is saved.
+
+```
+revenue (incl. VAT) = Σ total     of quotations where status = approved and date in month
+net before VAT      = Σ subtotal  (same set)
+output VAT          = Σ tax       (same set)
+not counted yet     = quotations where status = pending and date in month
+job costs           = Σ poCosts.amount where date in month
+```
+
+The only browser-side keys are `localStorage.reportSeen` (`YYYY-MM`, so "report ready" shows once a month) and `sessionStorage.lowStockShown` (the sign-in low-stock warning shows once per session).

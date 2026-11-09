@@ -18,9 +18,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Make sure renderApp is loaded before calling it
     if (typeof renderApp === 'function') {
+        applyRoleDefaults();
         renderApp();
         // Check for QR ?doc= param now that data is loaded
         checkQRParam();
+        // Low-stock warning / "monthly report ready" — after the first paint
+        if (!new URLSearchParams(window.location.search).get('doc')) setTimeout(startupNotices, 700);
     } else {
         console.error('❌ renderApp function not found!');
         document.getElementById('app').innerHTML = '<div style="padding:48px;text-align:center;color:#C23B3B;font-weight:700;">Error: UI not loaded properly</div>';
@@ -38,6 +41,8 @@ function saveToLocalStorage() {
         localStorage.setItem('purchaseOrders',  JSON.stringify(purchaseOrders));
         localStorage.setItem('poCosts',         JSON.stringify(poCosts));
         localStorage.setItem('materialPrices',  JSON.stringify(materialPrices));
+        localStorage.setItem('stockItems',      JSON.stringify(stockItems));
+        localStorage.setItem('stockMoves',      JSON.stringify(stockMoves));
         localStorage.setItem('companyInfo',     JSON.stringify(companyInfo));
     } catch (e) {
         console.error('localStorage save failed:', e);
@@ -54,6 +59,8 @@ function loadFromLocalStorage() {
         load('purchaseOrders', d => purchaseOrders = d);
         load('poCosts',        d => poCosts = d);
         load('materialPrices', d => materialPrices = d);
+        load('stockItems',     d => stockItems = d);
+        load('stockMoves',     d => stockMoves = d);
         // Only keep a stored company profile if it was saved against the current seed;
         // otherwise a stale profile from an older build would shadow the new defaults.
         load('companyInfo',    d => { if (d && d._seed === companyInfo._seed) Object.assign(companyInfo, d); });
