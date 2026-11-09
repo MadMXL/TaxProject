@@ -277,3 +277,32 @@ const companyInfo = {
 let poCosts = [];          // cost entries per PO
 let materialPrices = [];   // material cost per supplier records
 let matSearchQuery = '';   // search in material costs tab
+
+// ── STOCK ─────────────────────────────────────────────────────
+// Materials the company keeps on hand. qty changes only through stockMoves
+// (Receive adds, Use subtracts, Count sets an exact figure). An item is "low"
+// when qty <= minQty and "out" when qty <= 0.
+let stockItems = [
+    { id: 'STK-001', name: 'สายไฟ THW 1×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 6,  minQty: 4,  updatedAt: '2026-11-03T03:10:00.000Z' },
+    { id: 'STK-002', name: 'สายไฟ VCT 2×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 2,  minQty: 3,  updatedAt: '2026-11-05T08:40:00.000Z' },
+    { id: 'STK-003', name: 'เบรกเกอร์ลูกย่อย 1P 20A',              category: 'electrical',   unit: 'ตัว',    qty: 24, minQty: 10, updatedAt: '2026-10-28T02:00:00.000Z' },
+    { id: 'STK-004', name: 'ท่อร้อยสาย EMT 1/2 นิ้ว',               category: 'electrical',   unit: 'เส้น',   qty: 40, minQty: 20, updatedAt: '2026-10-20T04:30:00.000Z' },
+    { id: 'STK-005', name: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)',        category: 'steel',        unit: 'กล่อง',  qty: 0,  minQty: 3,  updatedAt: '2026-11-06T09:15:00.000Z' },
+    { id: 'STK-006', name: 'เหล็กกล่อง 2×2 นิ้ว หนา 2.3 มม.',        category: 'steel',        unit: 'เส้น',   qty: 12, minQty: 10, updatedAt: '2026-10-30T07:00:00.000Z' },
+    { id: 'STK-007', name: 'ใบตัดเหล็ก 4 นิ้ว',                      category: 'steel',        unit: 'ใบ',     qty: 35, minQty: 20, updatedAt: '2026-10-22T01:45:00.000Z' },
+    { id: 'STK-008', name: 'ปูนซีเมนต์ปอร์ตแลนด์ 50 กก.',             category: 'construction', unit: 'ถุง',    qty: 8,  minQty: 10, updatedAt: '2026-11-04T06:20:00.000Z' },
+    { id: 'STK-009', name: 'ชุดซีลปั๊มน้ำหล่อเย็น',                  category: 'maintenance',  unit: 'ชุด',    qty: 3,  minQty: 2,  updatedAt: '2026-10-15T03:00:00.000Z' },
+    { id: 'STK-010', name: 'น้ำมันหล่อลื่นเครื่องจักร ISO 68',        category: 'maintenance',  unit: 'แกลลอน', qty: 5,  minQty: 2,  updatedAt: '2026-10-12T02:30:00.000Z' },
+];
+
+// Every change to stock, newest last. type: 'in' (receive) | 'out' (use) | 'count' (stock-take).
+let stockMoves = [
+    { id: 'MOV-1001', itemId: 'STK-008', itemName: 'ปูนซีเมนต์ปอร์ตแลนด์ 50 กก.', type: 'out', qty: 12, after: 8, jobId: '', note: 'งานเทพื้น ศิริวัฒน์ก่อสร้าง', date: '2026-11-04', at: '2026-11-04T06:20:00.000Z', by: 'wichai@baigamgab.co' },
+    { id: 'MOV-1002', itemId: 'STK-002', itemName: 'สายไฟ VCT 2×2.5 ตร.มม. (ม้วน 100 ม.)', type: 'out', qty: 2, after: 2, jobId: '', note: 'เดินไฟไลน์ผลิต เอเชีย เมทัลเวิร์ค', date: '2026-11-05', at: '2026-11-05T08:40:00.000Z', by: 'wichai@baigamgab.co' },
+    { id: 'MOV-1003', itemId: 'STK-005', itemName: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)', type: 'out', qty: 2, after: 0, jobId: '', note: 'งานโครงหลังคา', date: '2026-11-06', at: '2026-11-06T09:15:00.000Z', by: 'wichai@baigamgab.co' },
+];
+let stockFilter = 'all';     // 'all' | 'low' | 'out' | 'ok'
+let stockSearchQuery = '';
+
+// ── MONTHLY REPORT ────────────────────────────────────────────
+let reportMonth = '';        // 'YYYY-MM'; empty = latest month that has documents

@@ -7,10 +7,19 @@
     "customers":      { ".read": "auth != null", ".write": "auth != null" },
     "products":       { ".read": "auth != null", ".write": "auth != null" },
 
+    "stockItems": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'technician' || root.child('users').child(auth.uid).child('role').val() === 'manager' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+    "stockMoves": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'technician' || root.child('users').child(auth.uid).child('role').val() === 'manager' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+
     "archive": {
       ".read": "auth != null",
       "$list": {
-        ".write": "auth != null && ($list === 'quotations' || $list === 'purchaseOrders' || $list === 'poCosts' || $list === 'materialPrices' || $list === 'customers' || $list === 'products')",
+        ".write": "auth != null && ($list === 'quotations' || $list === 'purchaseOrders' || $list === 'poCosts' || $list === 'materialPrices' || $list === 'customers' || $list === 'products' || $list === 'stockItems')",
         ".indexOn": ["inactiveAt"],
         "$id": {
           ".validate": "newData.hasChildren(['id', 'inactiveAt', 'inactiveReason']) && (newData.child('inactiveReason').val() === 'deleted' || newData.child('inactiveReason').val() === 'archived')"

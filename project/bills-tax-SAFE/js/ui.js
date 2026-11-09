@@ -19,8 +19,45 @@ function baht(n)   { return '<span class="cur">฿</span>' + fmt(n); }
 // ── LANGUAGE ──────────────────────────────────────────────────
 const LANG = {
   en: {
-    dashboard:'Dashboard', bills:'Documents', po:'Purchase Orders',
-    materials:'Material Costs', customers:'Customers',
+    dashboard:'Overview', bills:'Bills & Invoices', po:'Jobs & Costs',
+    materials:'Supplier Prices', customers:'Customers & Products',
+    approvals:'Approvals', report:'Monthly Report', stock:'Stock', team:'Team',
+    teamRoles:'Team & Roles', companyTab:'Company', activityLog:'Activity Log', archiveTab:'Archive',
+    grpBusiness:'Business', grpDocs:'Documents', grpOps:'Operations', grpAdmin:'Admin', more:'More',
+    shortCustomers:'Customers', shortJobs:'Jobs', shortPrices:'Prices', shortReport:'Report',
+    billsSub:'{n} documents', approvalsSub:'{n} waiting for your review · {all} documents in total',
+    poSub:'Customer orders: track progress and costs, then turn them into an invoice',
+    matSub:'Compare what each supplier charges for the same material',
+    customersSub:'{c} customers · {p} products and services',
+    // stock
+    stockSub:'{n} items · {low} at or below minimum', addStockItem:'Add Item', editStockItem:'Edit Item',
+    itemName:'Item name', category:'Category', onHand:'On hand', minLevel:'Minimum', lastMove:'Last change',
+    catElectrical:'Electrical', catSteel:'Steel & welding', catConstruction:'Construction', catMaintenance:'Maintenance', catOther:'Other',
+    stOk:'In stock', stLow:'Low', stOut:'Out of stock',
+    receive:'Receive', use:'Use', count:'Count', history:'History',
+    receiveTitle:'Receive stock', useTitle:'Use stock', countTitle:'Stock count',
+    qtyReceived:'Quantity received', qtyUsed:'Quantity used', qtyCounted:'Quantity counted on the shelf',
+    forJob:'For job (optional)', noJob:'No job', moveNote:'Note (optional)', moveNotePh:'e.g. supplier, delivery note no., site',
+    nowOnHand:'On hand now', afterMove:'After this change',
+    recentMoves:'Recent stock changes', noMoves:'No stock changes recorded yet',
+    noStock:'No stock items yet', noStockHint:'Add the materials you keep on hand, with a minimum level for each.',
+    lowBannerOne:'{name} is at or below its minimum level', lowBannerMany:'{n} items are at or below their minimum level',
+    outBanner:'{n} out of stock', openStock:'Open Stock',
+    stockSaved:'Stock updated', stockItemAdded:'Item added', stockItemUpdated:'Item updated', stockItemDeleted:'Stock item deleted',
+    useTooMuch:'Only {n} {unit} on hand. Use that amount or less.', enterQty:'Enter a quantity greater than 0',
+    enterName:'Enter an item name', minPh:'Warn when stock falls to this level',
+    nowLow:'{name} is now low: {n} {unit} left', nowOut:'{name} is now out of stock',
+    signinLow:'{n} stock items need reordering', unitStock:'e.g. roll, piece, box, bag',
+    // monthly report
+    reportSub:'Approved documents, counted by document date', month:'Month', prevMonth:'Previous month', nextMonth:'Next month',
+    revenueInclVat:'Revenue (incl. VAT)', netRevenue:'Net before VAT', outputVat:'Output VAT 7%', docsApproved:'Documents approved',
+    vsLastMonth:'vs {m}', noPrior:'no data for {m}', notCounted:'Not counted yet',
+    pendingAmt:'{n} pending · {amt} waiting for approval', byType:'By document type', topCustomers:'Top customers',
+    share:'Share', trend12:'Revenue, last 12 months', jobCosts:'Job costs recorded', grossMargin:'Revenue after job costs',
+    emailReport:'Email this report', downloadPdf:'Download PDF', noRevenueMonth:'No approved documents in this month',
+    noRevenueHint:'Approved bills, invoices and tax invoices dated in this month appear here.',
+    reportReady:'{m} revenue report is ready', viewReport:'View',
+    reportEmailSubject:'SmartLedger revenue report: {m}',
     newDoc:'New Document', manageUsers:'Users', signOut:'Sign out',
     draft:'Draft', pending:'Pending', approved:'Approved', rejected:'Rejected',
     open:'Open', inProgress:'In Progress', completed:'Completed',
@@ -34,7 +71,7 @@ const LANG = {
     approve:'Approve', reject:'Reject',
     addCustomer:'Add Customer', editCustomer:'Edit Customer', addUser:'Add User',
     createUser:'Create User', saveDocument:'Save Document', saveDocument2:'Save',
-    overview:'Dashboard', activitySummary:'Your billing activity at a glance',
+    overview:'Overview', activitySummary:'Revenue, approvals and stock at a glance',
     totalRevenue:'Total Revenue', vatCollected:'VAT Collected',
     grandTotal:'Grand Total', subtotal:'Subtotal',
     taxSummary:'Tax Summary', monthlyRevenue:'Monthly Revenue',
@@ -63,7 +100,7 @@ const LANG = {
     costEntries:'Cost Entries', noCosts:'No costs recorded yet',
     typeLbl:'Type', labor:'Labor', transport:'Transport', material:'Material', other:'Other',
     supplierLbl:'Supplier name',
-    materialCostTitle:'Material Cost per Supplier',
+    materialCostTitle:'Supplier Prices',
     noMaterialsMsg:'No material costs recorded yet',
     addMaterialTitle:'Add Material Price',
     materialName:'Material Name', supplier:'Supplier Name',
@@ -112,8 +149,45 @@ const LANG = {
     invoiceCreated:'Invoice created', notFound:'Document not found',
   },
   th: {
-    dashboard:'แดชบอร์ด', bills:'เอกสาร', po:'ใบสั่งซื้อ',
-    materials:'ต้นทุนวัสดุ', customers:'ลูกค้า',
+    dashboard:'ภาพรวม', bills:'บิลและใบแจ้งหนี้', po:'งานและต้นทุน',
+    materials:'เทียบราคาผู้ขาย', customers:'ลูกค้าและสินค้า',
+    approvals:'รอตรวจอนุมัติ', report:'รายงานรายเดือน', stock:'สต็อกวัสดุ', team:'ทีมงาน',
+    teamRoles:'ทีมงานและสิทธิ์', companyTab:'ข้อมูลบริษัท', activityLog:'บันทึกการใช้งาน', archiveTab:'คลังข้อมูลเก่า',
+    grpBusiness:'ธุรกิจ', grpDocs:'เอกสาร', grpOps:'งานปฏิบัติการ', grpAdmin:'ผู้ดูแลระบบ', more:'เพิ่มเติม',
+    shortCustomers:'ลูกค้า', shortJobs:'งาน', shortPrices:'ราคา', shortReport:'รายงาน',
+    billsSub:'{n} เอกสาร', approvalsSub:'รอคุณตรวจ {n} รายการ · เอกสารทั้งหมด {all} รายการ',
+    poSub:'ใบสั่งซื้อจากลูกค้า: ติดตามความคืบหน้าและต้นทุน แล้วแปลงเป็นใบแจ้งหนี้',
+    matSub:'เทียบราคาวัสดุชนิดเดียวกันจากผู้ขายแต่ละราย',
+    customersSub:'ลูกค้า {c} ราย · สินค้าและบริการ {p} รายการ',
+    // stock
+    stockSub:'{n} รายการ · ต่ำกว่าขั้นต่ำ {low} รายการ', addStockItem:'เพิ่มรายการ', editStockItem:'แก้ไขรายการ',
+    itemName:'ชื่อวัสดุ', category:'หมวด', onHand:'คงเหลือ', minLevel:'ขั้นต่ำ', lastMove:'เปลี่ยนแปลงล่าสุด',
+    catElectrical:'งานไฟฟ้า', catSteel:'เหล็กและงานเชื่อม', catConstruction:'งานก่อสร้าง', catMaintenance:'งานซ่อมบำรุง', catOther:'อื่นๆ',
+    stOk:'พร้อมใช้', stLow:'ใกล้หมด', stOut:'หมด',
+    receive:'รับเข้า', use:'เบิกใช้', count:'ตรวจนับ', history:'ประวัติ',
+    receiveTitle:'รับวัสดุเข้าสต็อก', useTitle:'เบิกวัสดุออก', countTitle:'ตรวจนับสต็อก',
+    qtyReceived:'จำนวนที่รับเข้า', qtyUsed:'จำนวนที่เบิก', qtyCounted:'จำนวนที่นับได้จริง',
+    forJob:'สำหรับงาน (ไม่บังคับ)', noJob:'ไม่ระบุงาน', moveNote:'หมายเหตุ (ไม่บังคับ)', moveNotePh:'เช่น ผู้ขาย เลขที่ใบส่งของ หน้างาน',
+    nowOnHand:'คงเหลือตอนนี้', afterMove:'หลังบันทึก',
+    recentMoves:'ความเคลื่อนไหวล่าสุด', noMoves:'ยังไม่มีการเคลื่อนไหวของสต็อก',
+    noStock:'ยังไม่มีรายการสต็อก', noStockHint:'เพิ่มวัสดุที่มีเก็บไว้ พร้อมกำหนดจำนวนขั้นต่ำของแต่ละรายการ',
+    lowBannerOne:'{name} เหลือถึงหรือต่ำกว่าขั้นต่ำแล้ว', lowBannerMany:'วัสดุ {n} รายการเหลือถึงหรือต่ำกว่าขั้นต่ำ',
+    outBanner:'หมด {n} รายการ', openStock:'เปิดหน้าสต็อก',
+    stockSaved:'บันทึกสต็อกแล้ว', stockItemAdded:'เพิ่มรายการแล้ว', stockItemUpdated:'บันทึกรายการแล้ว', stockItemDeleted:'ลบรายการสต็อกแล้ว',
+    useTooMuch:'มีคงเหลือเพียง {n} {unit} เบิกได้ไม่เกินจำนวนนี้', enterQty:'กรอกจำนวนที่มากกว่า 0',
+    enterName:'กรอกชื่อวัสดุ', minPh:'แจ้งเตือนเมื่อเหลือถึงจำนวนนี้',
+    nowLow:'{name} ใกล้หมด เหลือ {n} {unit}', nowOut:'{name} หมดสต็อกแล้ว',
+    signinLow:'วัสดุ {n} รายการต้องสั่งเพิ่ม', unitStock:'เช่น ม้วน ชิ้น กล่อง ถุง',
+    // monthly report
+    reportSub:'นับเฉพาะเอกสารที่อนุมัติแล้ว ตามวันที่ของเอกสาร', month:'เดือน', prevMonth:'เดือนก่อน', nextMonth:'เดือนถัดไป',
+    revenueInclVat:'รายได้ (รวม VAT)', netRevenue:'ยอดก่อนภาษี', outputVat:'ภาษีขาย 7%', docsApproved:'เอกสารที่อนุมัติ',
+    vsLastMonth:'เทียบกับ {m}', noPrior:'ไม่มีข้อมูล {m}', notCounted:'ยังไม่นับรวม',
+    pendingAmt:'รออนุมัติ {n} รายการ · {amt}', byType:'แยกตามประเภทเอกสาร', topCustomers:'ลูกค้ายอดสูงสุด',
+    share:'สัดส่วน', trend12:'รายได้ 12 เดือนล่าสุด', jobCosts:'ต้นทุนงานที่บันทึก', grossMargin:'รายได้หลังหักต้นทุนงาน',
+    emailReport:'ส่งรายงานทางอีเมล', downloadPdf:'ดาวน์โหลด PDF', noRevenueMonth:'ไม่มีเอกสารที่อนุมัติในเดือนนี้',
+    noRevenueHint:'บิล ใบแจ้งหนี้ และใบกำกับภาษีที่อนุมัติแล้วและลงวันที่ในเดือนนี้จะแสดงที่นี่',
+    reportReady:'รายงานรายได้เดือน {m} พร้อมแล้ว', viewReport:'ดูรายงาน',
+    reportEmailSubject:'รายงานรายได้ SmartLedger: {m}',
     newDoc:'เอกสารใหม่', manageUsers:'ผู้ใช้', signOut:'ออกจากระบบ',
     draft:'ร่าง', pending:'รออนุมัติ', approved:'อนุมัติแล้ว', rejected:'ปฏิเสธ',
     open:'เปิด', inProgress:'กำลังดำเนินการ', completed:'เสร็จสิ้น',
@@ -127,7 +201,7 @@ const LANG = {
     approve:'อนุมัติ', reject:'ปฏิเสธ',
     addCustomer:'เพิ่มลูกค้า', editCustomer:'แก้ไขลูกค้า', addUser:'เพิ่มผู้ใช้',
     createUser:'สร้างผู้ใช้', saveDocument:'บันทึกเอกสาร', saveDocument2:'บันทึก',
-    overview:'แดชบอร์ด', activitySummary:'ภาพรวมกิจกรรมการออกบิลของคุณ',
+    overview:'ภาพรวม', activitySummary:'รายได้ การอนุมัติ และสต็อกในหน้าเดียว',
     totalRevenue:'รายได้รวม', vatCollected:'ภาษีที่เก็บได้',
     grandTotal:'ยอดรวมทั้งสิ้น', subtotal:'ยอดก่อนภาษี',
     taxSummary:'สรุปภาษี', monthlyRevenue:'รายได้รายเดือน',
@@ -156,7 +230,7 @@ const LANG = {
     costEntries:'รายการค่าใช้จ่าย', noCosts:'ยังไม่มีค่าใช้จ่าย',
     typeLbl:'ประเภท', labor:'แรงงาน', transport:'ขนส่ง', material:'วัสดุ', other:'อื่นๆ',
     supplierLbl:'ชื่อผู้ขาย',
-    materialCostTitle:'ต้นทุนวัสดุต่อผู้ขาย',
+    materialCostTitle:'เทียบราคาผู้ขาย',
     noMaterialsMsg:'ยังไม่มีข้อมูลต้นทุนวัสดุ',
     addMaterialTitle:'เพิ่มราคาวัสดุ',
     materialName:'ชื่อวัสดุ', supplier:'ชื่อผู้ขาย',
@@ -206,6 +280,8 @@ const LANG = {
   }
 };
 function L(k){ const l = localStorage.getItem('appLang') || 'en'; return (LANG[l] && LANG[l][k]) || LANG.en[k] || k; }
+// L() with {placeholders} filled in: Lf('stockSub', { n: 4, low: 1 })
+function Lf(k, vars){ return L(k).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : '')); }
 function getLang(){ return localStorage.getItem('appLang') || 'en'; }
 function setLang(l){ localStorage.setItem('appLang', l); renderApp(); }
 
@@ -264,6 +340,16 @@ const IC = {
   receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/>',
   building:'<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/>',
   user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  chart:'<path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/>',
+  tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.4"/>',
+  archive:'<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/>',
+  stock:'<path d="M4 20V9l8-5 8 5v11"/><path d="M8 20v-6h8v6M8 17h8"/>',
+  alert:'<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.3v.2"/>',
+  more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>',
+  chevL:'<path d="M15 6l-6 6 6 6"/>',
+  minus:'<path d="M5 12h14"/>',
+  clipboard:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11l2 2 4-4M9 17h6"/>',
 };
 function icon(name, cls){
   return `<svg class="${cls||''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[name]||''}</svg>`;
@@ -280,23 +366,10 @@ function renderApp() {
   const role  = sessionStorage.getItem('userRole') || 'sales';
   const email = sessionStorage.getItem('userEmail') || '';
   const name  = sessionStorage.getItem('userName') || email;
-  const rejectedCount = quotations.filter(q => q.status === 'rejected').length;
-  const showRejBadge  = (role === 'sales' || role === 'admin' || role === 'manager') && rejectedCount > 0 ? rejectedCount : 0;
 
-  const pendingCount = quotations.filter(q => q.status === 'pending').length;
-
-  const canDocs = role === 'sales' || role === 'admin' || role === 'manager';
-  const canOps  = canDocs || role === 'technician';
-  const canUsers = role === 'admin' || role === 'manager';
-  const isAdmin = role === 'admin';
-  const th = getLang() === 'th';
-
-  // Dashboard is Admin-only — send everyone else to Documents
-  if (currentView === 'dashboard' && !isAdmin) currentView = 'bills';
-
-  // Documents badge: approvers see items awaiting them, creators see rejections
-  const docBadge = (role === 'technician' || role === 'manager' || role === 'admin')
-    ? pendingCount : showRejBadge;
+  // Each role only reaches its own pages; anything else falls back to its first page.
+  const nav = navModel(role);
+  if (!allowedViews(role).includes(currentView)) currentView = nav.home;
 
   const sideBrand = `
     <div class="side-logo">
@@ -308,22 +381,11 @@ function renderApp() {
     <div class="page">
       <aside class="sidebar">
         ${sideBrand}
-        <div class="nav-group">${th ? 'หลัก' : 'Main'}</div>
-        ${isAdmin ? navItem('dashboard', 'dashboard', L('dashboard')) : ''}
-        ${navItem('bills', 'bills', L('bills'), docBadge)}
-        ${canOps  ? navItem('po', 'po', L('po')) : ''}
-        ${canOps  ? navItem('materials', 'box', L('materials')) : ''}
-        ${canDocs ? navItem('customers', 'users', L('customers')) : ''}
-        ${isAdmin ? `
-          <div class="nav-group">${th ? 'ผู้ดูแลระบบ' : 'Admin'}</div>
-          ${navItem('users', 'shield', th ? 'ทีมงานและสิทธิ์' : 'Team & Roles', 0, 'team')}
-          ${navItem('users', 'building', th ? 'ข้อมูลบริษัท' : 'Company', 0, 'company')}
-          ${navItem('users', 'receipt', th ? 'บันทึกการใช้งาน' : 'Audit Log', 0, 'audit')}
-          ${navItem('users', 'box', th ? 'คลังข้อมูลเก่า' : 'Archive', 0, 'archive')}
-        ` : (canUsers ? `
-          <div class="nav-group">${th ? 'ผู้ดูแลระบบ' : 'Admin'}</div>
-          ${navItem('users', 'shield', L('manageUsers'))}
-        ` : '')}
+        <nav aria-label="${getLang() === 'th' ? 'เมนูหลัก' : 'Main menu'}">
+        ${nav.groups.map(g => `
+          <div class="nav-group">${esc(g.label)}</div>
+          ${g.items.map(it => navItem(it.view, it.ico, it.label, it.badge, it.sub, it.badgeTone)).join('')}`).join('')}
+        </nav>
         <div class="side-spacer"></div>
       </aside>
 
@@ -357,15 +419,144 @@ function renderApp() {
         </main>
       </div>
 
-      <nav class="tabbar">
-        ${isAdmin ? bottomTab('dashboard','dashboard',L('dashboard')) : ''}
-        ${bottomTab('bills','bills',L('bills'))}
-        ${canDocs ? bottomTab('customers','users',L('customers')) : bottomTab('po','po',L('po'))}
-        ${canDocs ? bottomTab('new','plus',L('newDoc')) : bottomTab('materials','box',L('materials'))}
-        ${canUsers && !isAdmin ? bottomTab('users','shield',L('manageUsers')) : ''}
+      <nav class="tabbar" aria-label="${getLang() === 'th' ? 'เมนูหลัก' : 'Main menu'}">
+        ${nav.tabbar.map(it => bottomTab(it.view, it.ico, it.short || it.label, it.badge, it.sub)).join('')}
+        ${nav.overflow.length ? `<a href="#" class="${nav.overflow.some(isCurrentNav) ? 'is-more-current' : ''}"
+            ${nav.overflow.some(isCurrentNav) ? 'aria-current="page"' : ''} onclick="event.preventDefault();openMoreSheet()">
+            <span class="tb-ico">${icon('more')}${nav.overflow.some(it => it.badge > 0) ? '<i class="tb-dot"></i>' : ''}</span><span>${L('more')}</span></a>` : ''}
       </nav>
     </div>`;
   if (docSnap) fillDocForm(docSnap);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION BY ROLE
+// One model drives the sidebar, the phone tab bar, the "More" sheet and the
+// command palette, so a role never sees a page in one place but not another.
+//   sales      Bills & Invoices · Customers & Products · Jobs & Costs
+//   technician Approvals · Jobs & Costs · Stock · Supplier Prices
+//   manager    Overview · Monthly Report · Bills · Customers · Jobs · Stock · Prices · Team
+//   admin      everything above + Team & Roles · Company · Activity Log · Archive
+// This only shapes the UI; database.rules.json is the real enforcement.
+// ═══════════════════════════════════════════════════════════════
+function navModel(role) {
+  const mgr = role === 'manager' || role === 'admin';
+  const tech = role === 'technician';
+  const sales = role === 'sales';
+  const pending = quotations.filter(q => q.status === 'pending').length;
+  const rejected = quotations.filter(q => q.status === 'rejected').length;
+  const low = stockAlerts().length;
+  const item = (view, ico, label, extra) => Object.assign({ view, ico, label, badge: 0 }, extra || {});
+
+  const groups = [
+    { label: L('grpBusiness'), items: mgr ? [
+        item('dashboard', 'dashboard', L('dashboard')),
+        item('report', 'chart', L('report'), { short: L('shortReport') }),
+      ] : [] },
+    { label: L('grpDocs'), items: [
+        // Approvers see what is waiting for them; Sales sees what came back rejected.
+        tech ? item('bills', 'clipboard', L('approvals'), { badge: pending })
+             : item('bills', 'bills', L('bills'), { badge: mgr ? pending : rejected, short: L('grpDocs') }),
+        !tech && item('customers', 'users', L('customers'), { short: L('shortCustomers') }),
+      ].filter(Boolean) },
+    { label: L('grpOps'), items: [
+        item('po', 'po', L('po'), { short: L('shortJobs') }),
+        !sales && item('stock', 'stock', L('stock'), { badge: low }),
+        !sales && item('materials', 'tag', L('materials'), { short: L('shortPrices') }),
+      ].filter(Boolean) },
+    { label: L('grpAdmin'), items: role === 'admin' ? [
+        item('users', 'shield',   L('teamRoles'),   { sub: 'team' }),
+        item('users', 'building', L('companyTab'),  { sub: 'company' }),
+        item('users', 'receipt',  L('activityLog'), { sub: 'audit' }),
+        item('users', 'archive',  L('archiveTab'),  { sub: 'archive' }),
+      ] : role === 'manager' ? [item('users', 'shield', L('team'))] : [] },
+  ].filter(g => g.items.length);
+
+  const flat = groups.flatMap(g => g.items);
+  // Phone tab bar: the pages each role opens most, then "More" for the rest.
+  const priority = {
+    sales:      ['bills', 'new', 'customers', 'po'],
+    technician: ['bills', 'po', 'stock', 'materials'],
+    manager:    ['dashboard', 'bills', 'stock', 'po'],
+    admin:      ['dashboard', 'bills', 'stock', 'po'],
+  }[role] || ['bills'];
+  const tabbar = priority.map(v => v === 'new' ? item('new', 'plus', L('newDoc')) : flat.find(it => it.view === v && !it.sub)).filter(Boolean);
+  const overflow = flat.filter(it => !tabbar.includes(it));
+  return { groups, flat, tabbar, overflow, home: flat[0].view };
+}
+
+function allowedViews(role) {
+  const views = navModel(role).flat.map(it => it.view);
+  if (role !== 'technician') views.push('new');
+  return views;
+}
+
+function isCurrentNav(it) {
+  if (it.sub) return currentView === 'users' && (adminTab || 'team') === it.sub;
+  return currentView === it.view;
+}
+
+// Phone: the pages that don't fit in the tab bar.
+function openMoreSheet() {
+  closeMoreSheet();
+  const nav = navModel(sessionStorage.getItem('userRole') || 'sales');
+  const html = `
+  <div id="moreSheet" class="scrim" onclick="if(event.target.id==='moreSheet')closeMoreSheet()">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="moreTitle" style="max-width:420px;">
+      <div class="sheet-head"><div id="moreTitle" class="h">${L('more')}</div>
+        <button class="sheet-x" onclick="closeMoreSheet()" aria-label="${L('close')}">${icon('x','')}</button></div>
+      <div>${nav.overflow.map(it => `
+        <button class="row row-btn more-row" ${isCurrentNav(it) ? 'aria-current="page"' : ''}
+          onclick="closeMoreSheet();${it.sub ? `switchAdminTab('${it.sub}')` : `switchView('${it.view}')`}">
+          <span class="row-ico">${icon(it.ico,'')}</span>
+          <span class="row-main"><span class="t">${esc(it.label)}</span></span>
+          ${it.badge > 0 ? `<span class="tab-badge">${it.badge}</span>` : ''}${icon('chevR','more-chev')}
+        </button>`).join('')}</div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.addEventListener('keydown', moreSheetKey);
+}
+function moreSheetKey(e) { if (e.key === 'Escape') closeMoreSheet(); }
+function closeMoreSheet() {
+  document.getElementById('moreSheet')?.remove();
+  document.removeEventListener('keydown', moreSheetKey);
+}
+
+// Called once after sign-in: role-specific starting filters and reminders.
+function applyRoleDefaults() {
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  if (role === 'technician') statusFilter = 'pending';   // Approvals opens on what's waiting
+}
+
+// After sign-in: tell the people who restock about low items, and the people who
+// read the monthly report that a new one is ready. Each shows once per session / month.
+function startupNotices() {
+  const role = sessionStorage.getItem('userRole') || 'sales';
+  const mgr = role === 'manager' || role === 'admin';
+  const store = (fn) => { try { return fn(); } catch (e) { return null; } };
+
+  const alerts = role !== 'sales' ? stockAlerts() : [];
+  if (alerts.length && !store(() => sessionStorage.getItem('lowStockShown'))) {
+    store(() => sessionStorage.setItem('lowStockShown', '1'));
+    showNotification('⚠️ ' + Lf('signinLow', { n: alerts.length }), {
+      type: 'warn',
+      detail: alerts.slice(0, 3).map(s => s.name).join(', ') + (alerts.length > 3 ? '…' : ''),
+      action: { label: L('openStock'), onClick: () => { stockFilter = 'low'; switchView('stock'); } },
+    });
+    return;   // one island at a time
+  }
+
+  // First visit in a new month: last month's report is complete.
+  const thisMonth = localDateISO().slice(0, 7);
+  if (mgr && store(() => localStorage.getItem('reportSeen')) !== thisMonth) {
+    store(() => localStorage.setItem('reportSeen', thisMonth));
+    const last = shiftMonth(thisMonth, -1);
+    showNotification(Lf('reportReady', { m: monthName(last) }), {
+      type: 'info',
+      action: { label: L('viewReport'), onClick: () => { reportMonth = last; switchView('report'); } },
+    });
+  }
 }
 
 function tab(view, label, badge) {
@@ -375,9 +566,7 @@ function tab(view, label, badge) {
 }
 
 function navItem(view, ico, label, badge, adminSub) {
-  const cur = adminSub
-    ? (currentView === 'users' && (adminTab || 'team') === adminSub)
-    : (view === 'users' ? currentView === 'users' : currentView === view);
+  const cur = isCurrentNav({ view, sub: adminSub });
   const b = badge > 0 ? `<span class="tab-badge">${badge}</span>` : '';
   const onclick = adminSub ? `switchAdminTab('${adminSub}')` : `switchView('${view}')`;
   return `<button class="nav-item" ${cur ? 'aria-current="page"' : ''} onclick="${onclick}">${icon(ico)}<span>${esc(label)}</span>${b}</button>`;
@@ -388,16 +577,18 @@ async function switchAdminTab(t) {
   if (currentView === 'new') resetDocFormState();
   adminTab = t; currentView = 'users'; renderApp();
 }
-function bottomTab(view, ico, label) {
+function bottomTab(view, ico, label, badge) {
   const cur = currentView === view;
-  return `<a href="#" ${cur ? 'aria-current="page"' : ''} onclick="event.preventDefault();switchView('${view}')">${icon(ico)}<span>${esc(label)}</span></a>`;
+  const dot = badge > 0 ? `<i class="tb-badge">${badge > 99 ? '99+' : badge}</i>` : '';
+  return `<a href="#" ${cur ? 'aria-current="page"' : ''} onclick="event.preventDefault();switchView('${view}')"><span class="tb-ico">${icon(ico)}${dot}</span><span>${esc(label)}</span></a>`;
 }
 
 function renderContent() {
-  const role = sessionStorage.getItem('userRole') || 'sales';
   const html = (() => {
     switch (currentView) {
-      case 'dashboard': return role === 'admin' ? renderDashboard() : renderBillsView();
+      case 'dashboard': return renderDashboard();
+      case 'report':    return renderReportView();
+      case 'stock':     return renderStockView();
       case 'bills':     return renderBillsView();
       case 'customers': return renderCustomersView();
       case 'new':       return renderNewQuotation();
@@ -416,8 +607,11 @@ function renderContent() {
 // ═══════════════════════════════════════════════════════════════
 function renderDashboard() {
   const th = getLang() === 'th';
-  const total = quotations.reduce((s, q) => s + (q.total || 0), 0);
-  const vat   = quotations.reduce((s, q) => s + (q.tax || 0), 0);
+  // Revenue counts approved documents only, the same rule as the Monthly Report,
+  // so the two pages never disagree. Drafts, pending and rejected aren't income yet.
+  const approvedDocs = quotations.filter(q => q.status === 'approved');
+  const total = approvedDocs.reduce((s, q) => s + (q.total || 0), 0);
+  const vat   = approvedDocs.reduce((s, q) => s + (q.tax || 0), 0);
   const c = {
     draft:    quotations.filter(q => q.status === 'draft').length,
     pending:  quotations.filter(q => q.status === 'pending').length,
@@ -430,7 +624,7 @@ function renderDashboard() {
   const approvalRate = decided ? Math.round(c.approved / decided * 100) : 0;
 
   const monthly = {};
-  quotations.forEach(q => { const m = (q.date || '').substring(0, 7); if (m) monthly[m] = (monthly[m] || 0) + (q.total || 0); });
+  approvedDocs.forEach(q => { const m = (q.date || '').substring(0, 7); if (m) monthly[m] = (monthly[m] || 0) + (q.total || 0); });
   const months = Object.keys(monthly).sort().slice(-6).map(m => ({ label: monthLabel(m, th), value: monthly[m] }));
 
   return `
@@ -438,8 +632,10 @@ function renderDashboard() {
       <div><h1>${L('overview')}</h1><p>${L('activitySummary')}</p></div>
     </div>
 
+    ${stockBanner()}
+
     <div class="kpi-grid">
-      ${kpi(L('totalRevenue'), baht(total), 'var(--brand)', (th ? 'จาก ' : 'across ') + totalDocs + (th ? ' เอกสาร' : ' documents'))}
+      ${kpi(L('totalRevenue'), baht(total), 'var(--brand)', th ? `จากเอกสารที่อนุมัติ ${c.approved} รายการ` : `from ${c.approved} approved document${c.approved === 1 ? '' : 's'}`)}
       ${kpi(L('pendingCount'), c.pending, 'var(--st-pending)', th ? 'รอตรวจสอบ' : 'awaiting review', c.pending ? 'up' : 'flat')}
       ${kpi(L('approvedCount'), c.approved, 'var(--st-approved)', (th ? 'อัตราอนุมัติ ' : 'approval rate ') + approvalRate + '%')}
       ${kpi(L('vatCollected'), baht(vat), 'var(--accent)', th ? 'ภาษีขาย 7%' : 'output VAT 7%')}
@@ -447,7 +643,8 @@ function renderDashboard() {
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-head"><span class="card-title">${L('monthlyRevenue')}</span><span class="cell-sub">${th ? 'พันบาท' : 'THB ×1,000'}</span></div>
+        <div class="card-head"><span class="card-title">${L('monthlyRevenue')}</span>
+          <button class="act act-primary" onclick="switchView('report')">${L('report')} ${icon('arrowR','')}</button></div>
         <div class="card-pad">${months.length ? barChartSVG(months) : `<p class="muted" style="font-size:var(--t-meta);">${th ? 'ยังไม่มีข้อมูลรายได้' : 'No revenue recorded yet.'}</p>`}</div>
       </div>
       <div class="card">
@@ -538,7 +735,7 @@ function barChartSVG(data) {
     const last = i === data.length - 1;
     return `
       <rect x="${(cx - bw / 2).toFixed(1)}" y="${y(d.value).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="var(--accent)" fill-opacity="${last ? '1' : '0.32'}"/>
-      <text x="${cx.toFixed(1)}" y="${(y(d.value) - 6).toFixed(1)}" text-anchor="middle" font-size="10" fill="${last ? 'var(--ink)' : 'var(--ink-3)'}" font-weight="${last ? '700' : '400'}">${fmtInt(d.value / 1000)}</text>
+      ${d.value > 0 || last ? `<text x="${cx.toFixed(1)}" y="${(y(d.value) - 6).toFixed(1)}" text-anchor="middle" font-size="10" fill="${last ? 'var(--ink)' : 'var(--ink-3)'}" font-weight="${last ? '700' : '400'}">${fmtInt(d.value / 1000)}</text>` : ''}
       <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="${last ? 'var(--ink)' : 'var(--ink-3)'}" font-weight="${last ? '700' : '400'}">${esc(d.label)}</text>`;
   }).join('');
   return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${getLang() === 'th' ? 'กราฟรายได้รายเดือน' : 'Monthly revenue bar chart'}">
@@ -671,10 +868,14 @@ function renderBillsView() {
   const role = sessionStorage.getItem('userRole') || 'sales';
   const canCreate = role === 'sales' || role === 'admin' || role === 'manager';
   const th = getLang() === 'th';
+  const tech = role === 'technician';
+  const sub = tech
+    ? Lf('approvalsSub', { n: quotations.filter(q => q.status === 'pending').length, all: quotations.length })
+    : (th ? Lf('billsSub', { n: scoped.length }) : `${scoped.length} ${scoped.length === 1 ? 'document' : 'documents'}`);
 
   return `
     <div class="view-head">
-      <div><h1>${L('bills')}</h1><p>${scoped.length} ${th ? 'เอกสาร' : (scoped.length === 1 ? 'document' : 'documents')}</p></div>
+      <div><h1>${L(tech ? 'approvals' : 'bills')}</h1><p>${esc(sub)}</p></div>
       ${canCreate ? `<button class="btn btn-primary" onclick="switchView('new')">${icon('plus')}${L('newDoc')}</button>` : ''}
     </div>
 
@@ -774,14 +975,16 @@ function setSearch(key, val) {
   if (key === 'bills') searchQuery = val;
   else if (key === 'po') poSearchQuery = val;
   else if (key === 'mat') matSearchQuery = val;
+  else if (key === 'stock') stockSearchQuery = val;
 }
 function getSearch(key) {
-  return key === 'bills' ? searchQuery : key === 'po' ? poSearchQuery : matSearchQuery;
+  return key === 'bills' ? searchQuery : key === 'po' ? poSearchQuery : key === 'stock' ? stockSearchQuery : matSearchQuery;
 }
 function searchResultsHTML(key) {
   return key === 'bills' ? billsResultsHTML()
     : key === 'po' ? poResultsHTML()
-    : key === 'mat' ? matResultsHTML() : '';
+    : key === 'mat' ? matResultsHTML()
+    : key === 'stock' ? stockResultsHTML() : '';
 }
 function onSearch(el, key) {
   setSearch(key, el.value);
@@ -875,7 +1078,7 @@ function renderBillsGrouped(list, limit = Infinity) {
 function renderCustomersView() {
   return `
     <div class="view-head">
-      <div><h1>${L('customers')}</h1><p>${customers.length} customer${customers.length === 1 ? '' : 's'}</p></div>
+      <div><h1>${L('customers')}</h1><p>${esc(Lf('customersSub', { c: customers.length, p: products.length }))}</p></div>
       <button class="btn btn-primary" onclick="showAddCustomerModal()">${icon('plus')}${L('addCustomer')}</button>
     </div>
     ${!customers.length ? emptyState(L('noCustomers'), L('addFirstCustomer'), 'users') : `
@@ -1045,7 +1248,7 @@ function renderUsersView() {
     // Manager: team panel only
     return `<div style="max-width:960px;margin:0 auto;width:100%;" class="stack">
       <div class="view-head">
-        <div><h1>${L('userMgmt')}</h1><p>${th ? 'ผู้จัดการ — เพิ่มได้เฉพาะ Sales และ Technician' : 'Manager — can add Sales & Technician only'}</p></div>
+        <div><h1>${L('team')}</h1><p>${th ? 'ผู้จัดการ — เพิ่มได้เฉพาะ Sales และ Technician' : 'Manager — can add Sales & Technician only'}</p></div>
       </div>
       ${renderTeamPanel(false)}
     </div>`;
@@ -1065,10 +1268,10 @@ function renderUsersView() {
       </div>
     </div>
     <div class="subtabs">
-      ${sub('team',    th ? 'ทีมงานและสิทธิ์' : 'Team & Roles')}
-      ${sub('company', th ? 'ข้อมูลบริษัท'     : 'Company')}
-      ${sub('audit',   th ? 'บันทึกการใช้งาน'  : 'Audit Log')}
-      ${sub('archive', th ? 'คลังข้อมูลเก่า'   : 'Archive')}
+      ${sub('team',    L('teamRoles'))}
+      ${sub('company', L('companyTab'))}
+      ${sub('audit',   L('activityLog'))}
+      ${sub('archive', L('archiveTab'))}
     </div>
     ${body}
   </div>`;
@@ -1189,6 +1392,7 @@ const ARCHIVE_KIND = {
   products:       ['Product', 'สินค้า'],
   poCosts:        ['PO cost', 'ค่าใช้จ่าย PO'],
   materialPrices: ['Material price', 'ราคาวัสดุ'],
+  stockItems:     ['Stock item', 'รายการสต็อก'],
 };
 
 function renderArchivePanel() {
@@ -1430,7 +1634,7 @@ function renderPOView() {
 
   return `
     <div class="view-head">
-      <div><h1>${L('po')}</h1><p>${purchaseOrders.length} ${L('ordersCount')}</p></div>
+      <div><h1>${L('po')}</h1><p>${esc(L('poSub'))} · ${purchaseOrders.length} ${L('ordersCount')}</p></div>
       ${canEdit ? `<button class="btn btn-primary" onclick="openPOForm()">${icon('plus')}${L('newPO')}</button>` : ''}
     </div>
 
@@ -1506,7 +1710,7 @@ function matResultsHTML() {
 function renderMaterialsView() {
   return `
     <div class="view-head">
-      <div><h1>${L('materialCostTitle')}</h1><p>${Object.keys(matGrouped()).length} ${L('materialsTracked')}</p></div>
+      <div><h1>${L('materialCostTitle')}</h1><p>${esc(L('matSub'))} · ${Object.keys(matGrouped()).length} ${L('materialsTracked')}</p></div>
       <button class="btn btn-primary" onclick="openAddMaterialForm()">${icon('plus')}${L('addMaterial')}</button>
     </div>
 
@@ -1812,8 +2016,6 @@ function isMac() { return /Mac|iPhone|iPad/.test(navigator.platform || navigator
 function paletteSource() {
   const role = sessionStorage.getItem('userRole') || 'sales';
   const canDocs = role === 'sales' || role === 'admin' || role === 'manager';
-  const canOps = canDocs || role === 'technician';
-  const canUsers = role === 'admin' || role === 'manager';
   const go = L('goTo') + ' ';
   const out = [];
   const add = (group, ico, label, sub, run, keywords = '') =>
@@ -1821,14 +2023,12 @@ function paletteSource() {
 
   const A = L('actionsGrp');
   if (canDocs) add(A, 'plus', L('newDoc'), '', () => switchView('new'), 'create new document bill invoice');
-  if (role === 'admin') add(A, 'dashboard', go + L('dashboard'), '', () => switchView('dashboard'));
-  add(A, 'bills', go + L('bills'), '', () => switchView('bills'));
-  if (canDocs) add(A, 'users', go + L('customers'), '', () => switchView('customers'));
-  if (canOps) add(A, 'po', go + L('po'), '', () => switchView('po'));
-  if (canOps) add(A, 'box', go + L('materials'), '', () => switchView('materials'));
-  if (canUsers) add(A, 'shield', go + L('manageUsers'), '', () => switchView('users'));
+  // "Go to" entries come from the same per-role model as the sidebar.
+  navModel(role).flat.forEach(it => add(A, it.ico, go + it.label, '',
+    () => (it.sub ? switchAdminTab(it.sub) : switchView(it.view)), it.view));
   if (canDocs) add(A, 'plus', L('addCustomer'), '', () => showAddCustomerModal());
   if (canDocs) add(A, 'plus', L('addProduct'), '', () => showAddProductModal());
+  if (canEditStock()) add(A, 'plus', L('addStockItem'), L('stock'), () => openStockItemForm(), 'stock material inventory');
   add(A, getMode() === 'dark' ? 'sun' : 'moon', L('toggleTheme'), '', toggleMode, 'theme dark light');
   add(A, 'dot', L('switchLang'), '', () => setLang(getLang() === 'en' ? 'th' : 'en'), 'language thai english ภาษา');
 
@@ -1839,6 +2039,10 @@ function paletteSource() {
       () => viewCustomer(c.id), c.taxId || ''));
     products.forEach(p => add(L('products'), 'box', p.name, `฿${fmt(p.price)}${p.unit ? ' / ' + p.unit : ''}`,
       () => editProduct(p.id), p.description || ''));
+  }
+  if (canMoveStock()) {
+    stockItems.forEach(s => add(L('stock'), 'stock', s.name, `${L('onHand')} ${fmtQty(s.qty)} ${s.unit} · ${stockStatusLabel(s)}`,
+      () => openStockMove(s.id, 'out'), categoryLabel(s.category)));
   }
   return out;
 }

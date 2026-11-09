@@ -21,12 +21,14 @@ Verification is manual in the browser (test checklists are in `WORKFLOW-GUIDE.md
 
 ## Architecture
 
-**Global-script app.** `index.html` loads plain `<script>` tags in a fixed order — `data.js` → `firebase-config.js` → `functions.js` → `ui.js` → `app.js` — and every file shares one global scope. There are no modules/imports; functions are called from inline `onclick="..."` attributes in generated HTML, so renaming a function means grepping the template strings too.
+**Global-script app.** `index.html` loads plain `<script>` tags in a fixed order — `data.js` → `firebase-config.js` → `functions.js` → `ui.js` → `stock.js` → `report.js` → `app.js` — and every file shares one global scope. There are no modules/imports; functions are called from inline `onclick="..."` attributes in generated HTML, so renaming a function means grepping the template strings too.
 
 - `js/data.js` — seed data and all mutable global state (`quotations`, `purchaseOrders`, `poCosts`, `materialPrices`, `customers`, `products`, `companyInfo`, plus view/filter state like `currentView`, `listFilters`).
 - `js/firebase-config.js` — Firebase init, `showNotification()` (the "island" toast), and sync: `SYNCED_ARRAYS`, `loadFromFirebase()`, `setupRealtimeSync()`.
 - `js/functions.js` — actions/business logic: document form, approval workflow, soft delete/archive, customers, products, POs and costs, PDF generation (`generatePDF`).
 - `js/ui.js` — rendering. `renderApp()` rebuilds the whole `#app` via `innerHTML` template strings; `renderContent()` switches on `currentView`. Also `LANG` (en/th strings, read via `L(key)`), helpers `esc()` (HTML escaping — use it for all user data in templates), `fmt()`, `baht()`, icons.
+- `js/stock.js` — Stock page: items with minimum levels, Receive / Use / Count movements (`stockMoves`), low-stock alerts (`stockAlerts()`, banner, nav badge).
+- `js/report.js` — Monthly Report: revenue from approved documents per month, email (mailto) and PDF export.
 - `js/app.js` — bootstrap on `DOMContentLoaded` (localStorage → Firebase → render → realtime listeners), localStorage persistence, `?doc=` QR deep-link handler.
 - `login.html` — has its own inline copy of the Firebase config; signs in and writes `userId/userEmail/userRole/userName` to `sessionStorage`. `index.html` redirects back to login if they're missing. `admin.html` is just a redirect (admin tools are now in-app).
 
@@ -34,7 +36,7 @@ Verification is manual in the browser (test checklists are in `WORKFLOW-GUIDE.md
 
 **Soft delete.** Nothing is erased: `removeWithUndo()` moves records to `archive/<list>/<id>` with `inactiveAt/inactiveBy/inactiveReason` (`deleted` | `archived`); the Admin → Archive tab restores them. The archive is fetched only on demand.
 
-**Roles** (`admin`, `manager`, `sales`, `technician`) are read from `sessionStorage.userRole` and gate UI in `renderApp()` and individual views. This is client-side only; the real enforcement is `database.rules.json`, which must be deployed manually in the Firebase Console (see `SECURITY.md`).
+**Roles** (`admin`, `manager`, `sales`, `technician`) are read from `sessionStorage.userRole`. `navModel(role)` in ui.js is the single source for which pages each role sees (sidebar, phone tab bar + More sheet, command palette); `allowedViews()` guards `switchView`/`renderApp`. This is client-side only; the real enforcement is `database.rules.json`, which must be deployed manually in the Firebase Console (see `SECURITY.md`).
 
 **Documents** (`quotations` node) have `docType` `bill` | `invoice` | `tax-invoice` and status flow `draft → pending → approved | rejected`. VAT is a flat 7% (`tax = round2(subtotal × 0.07)` when `vat`); money is THB to 2 decimals; `date` is local `YYYY-MM-DD`, `…At` is ISO UTC, `…By` is the user's email. Full schema: `DATA-DICTIONARY.md` — keep it in sync with any field change.
 

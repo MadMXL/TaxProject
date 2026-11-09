@@ -25,8 +25,9 @@ function markDocDirty(event) {
 }
 
 async function switchView(view) {
-    // Dashboard is Admin-only
-    if (view === 'dashboard' && sessionStorage.getItem('userRole') !== 'admin') view = 'bills';
+    // Each role only reaches its own pages (see navModel in ui.js)
+    const role = sessionStorage.getItem('userRole') || 'sales';
+    if (!allowedViews(role).includes(view)) view = navModel(role).home;
     // Re-selecting New Document while on it keeps the form; anything else leaves it.
     if (view !== 'new' || currentView !== 'new') {
         if (!(await confirmLeaveDocForm())) return;
@@ -325,6 +326,7 @@ const DATA_LISTS = {
     purchaseOrders: { get: () => purchaseOrders, set: v => { purchaseOrders = v; }, persist: () => { saveToLocalStorage(); syncPOsToFirebase(); } },
     poCosts:        { get: () => poCosts,        set: v => { poCosts = v; },        persist: () => { saveToLocalStorage(); syncCostsToFirebase(); } },
     materialPrices: { get: () => materialPrices, set: v => { materialPrices = v; }, persist: () => { saveToLocalStorage(); syncMaterialPricesToFirebase(); } },
+    stockItems:     { get: () => stockItems,     set: v => { stockItems = v; },     persist: () => persistStock() },
 };
 
 function removeWithUndo(listName, id, message, refresh = renderApp) {
@@ -364,7 +366,7 @@ let archiveLoaded = false;
 let archiveMonths = 12;      // age cut-off for "archive old records"
 let archiveFilter = 'all';   // 'all' | 'deleted' | 'archived'
 
-const ARCHIVE_LISTS = ['quotations', 'purchaseOrders', 'customers', 'products', 'poCosts', 'materialPrices'];
+const ARCHIVE_LISTS = ['quotations', 'purchaseOrders', 'customers', 'products', 'poCosts', 'materialPrices', 'stockItems'];
 const ARCHIVE_PAGE = 200;    // newest N per list, so the admin view stays fast as the archive grows
 
 // Without Firebase the archive lives in localStorage; with Firebase it lives in
