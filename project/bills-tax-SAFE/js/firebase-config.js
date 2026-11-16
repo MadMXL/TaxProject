@@ -133,6 +133,21 @@ function applyCompanyInfo(d) {
   return true;
 }
 
+// Record IDs are written into inline handlers (onclick="viewQuotation('ID')"),
+// where HTML escaping does not protect a JS string. The app only creates IDs from
+// letters, digits, _ and -, so a record whose ID holds anything else was not made
+// by the app (any signed-in user can write these lists): skip it, never render it.
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+function isSafeId(id) { return id == null || SAFE_ID.test(String(id)); }
+function safeRecords(list) {
+  if (!Array.isArray(list)) return list;
+  return list.filter(r => {
+    const ok = !r || typeof r !== 'object' || isSafeId(r.id);
+    if (!ok) console.warn('Skipped a record with an unsafe id');
+    return ok;
+  });
+}
+
 // Array-valued paths shared by loadFromFirebase and setupRealtimeSync
 const SYNCED_ARRAYS = [
   ['quotations',     d => quotations = d],
@@ -143,13 +158,14 @@ const SYNCED_ARRAYS = [
   ['products',       d => products = d],
   ['stockItems',     d => stockItems = d],
   ['stockMoves',     d => stockMoves = d],
+  ['purchaseRequests', d => purchaseRequests = d],
 ];
 
 function loadFromFirebase() {
   if (!isFirebaseEnabled) return Promise.resolve();
   const loads = SYNCED_ARRAYS.map(([path, setter]) =>
     database.ref(path).once('value').then(snap => {
-      const data = snap.val();
+      const data = safeRecords(snap.val());
       if (data && Array.isArray(data)) {
         setter(data);
         localStorage.setItem(path, JSON.stringify(data));
@@ -168,7 +184,7 @@ function setupRealtimeSync() {
   if (!isFirebaseEnabled) return;
   SYNCED_ARRAYS.forEach(([path, setter]) => {
     database.ref(path).on('value', (snap) => {
-      const data = snap.val();
+      const data = safeRecords(snap.val());
       if (data && Array.isArray(data)) {
         setter(data);
         localStorage.setItem(path, JSON.stringify(data));

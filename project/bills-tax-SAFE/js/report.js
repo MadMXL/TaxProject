@@ -62,11 +62,13 @@ function monthStats(ym) {
     .map(c => ({ ...c, share: revenue ? c.total / revenue : 0 }));
 
   const jobCosts = r2(poCosts.filter(c => (c.date || '').slice(0, 7) === ym).reduce((s, c) => s + (Number(c.amount) || 0), 0));
+  const purchased = r2(purchaseRequests.filter(p => p.status === 'received' && (p.receivedAt || '').slice(0, 7) === ym)
+    .reduce((s, p) => s + (Number(p.receivedTotal) || 0), 0));
 
   return {
     ym, revenue, net: sum(approved, 'subtotal'), vat: sum(approved, 'tax'), count: approved.length,
     pendingCount: pending.length, pendingTotal: sum(pending, 'total'),
-    byType, customersTop, jobCosts,
+    byType, customersTop, jobCosts, purchased,
   };
 }
 
@@ -156,6 +158,7 @@ function renderReportView() {
         </table></div>
         <div class="card-pad" style="padding-top:var(--s2);">
           ${kv(L('jobCosts'), '฿' + fmt(s.jobCosts), 'var(--ink-2)')}
+          ${kv(L('purchasesMonth'), '฿' + fmt(s.purchased), 'var(--ink-2)')}
           ${kv(L('grossMargin') + (th ? ' (ก่อนภาษี)' : ' (before VAT)'), '฿' + fmt(r2(s.net - s.jobCosts)), s.net - s.jobCosts >= 0 ? 'var(--pos)' : 'var(--neg)')}
         </div>
       </div>
@@ -186,6 +189,7 @@ function reportText(ym) {
     `${L('docsApproved')}: ${s.count}`,
     s.pendingCount ? `${L('notCounted')}: ${Lf('pendingAmt', { n: s.pendingCount, amt: B(s.pendingTotal) })}` : '',
     `${L('jobCosts')}: ${B(s.jobCosts)}`,
+    `${L('purchasesMonth')}: ${B(s.purchased)}`,
     '',
     L('byType'),
     ...s.byType.filter(t => t.count).map(t => `- ${docTypeName(t.type)}: ${t.count} · ${B(t.total)}`),

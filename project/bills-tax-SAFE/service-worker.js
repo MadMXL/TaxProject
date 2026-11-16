@@ -1,4 +1,4 @@
-const CACHE_NAME = 'baigamgab-v5';
+const CACHE_NAME = 'baigamgab-v6';
 const urlsToCache = [
   '/index.html',
   '/login.html',
@@ -9,6 +9,7 @@ const urlsToCache = [
   '/js/ui.js',
   '/js/functions.js',
   '/js/stock.js',
+  '/js/purchasing.js',
   '/js/report.js',
   '/js/app.js',
   '/js/sarabun-font.js',

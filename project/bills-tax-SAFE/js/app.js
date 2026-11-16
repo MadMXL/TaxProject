@@ -43,6 +43,7 @@ function saveToLocalStorage() {
         localStorage.setItem('materialPrices',  JSON.stringify(materialPrices));
         localStorage.setItem('stockItems',      JSON.stringify(stockItems));
         localStorage.setItem('stockMoves',      JSON.stringify(stockMoves));
+        localStorage.setItem('purchaseRequests', JSON.stringify(purchaseRequests));
         localStorage.setItem('companyInfo',     JSON.stringify(companyInfo));
     } catch (e) {
         console.error('localStorage save failed:', e);
@@ -53,7 +54,7 @@ function loadFromLocalStorage() {
     try {
         const load = (key, setter) => {
             const raw = localStorage.getItem(key);
-            if (raw) setter(JSON.parse(raw));
+            if (raw) setter(safeRecords(JSON.parse(raw)));
         };
         load('quotations',     d => quotations = d);
         load('purchaseOrders', d => purchaseOrders = d);
@@ -61,6 +62,7 @@ function loadFromLocalStorage() {
         load('materialPrices', d => materialPrices = d);
         load('stockItems',     d => stockItems = d);
         load('stockMoves',     d => stockMoves = d);
+        load('purchaseRequests', d => purchaseRequests = d);
         // Only keep a stored company profile if it was saved against the current seed;
         // otherwise a stale profile from an older build would shadow the new defaults.
         load('companyInfo',    d => { if (d && d._seed === companyInfo._seed) Object.assign(companyInfo, d); });

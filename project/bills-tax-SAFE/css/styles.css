@@ -957,6 +957,35 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 .share .meter > i { background: var(--accent); }
 .share-cell { width: 150px; }
 
+/* ---- 26. Purchase requests --------------------------- */
+/* Three approval tiers read left to right, cheapest first */
+.pr-rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+@media (max-width: 560px) { .pr-rules { grid-template-columns: 1fr; } }
+.pr-rule {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px; border-radius: var(--r-control);
+  border: 1px solid var(--line-2); background: var(--surface);
+  font-size: var(--t-micro); color: var(--ink-2);
+}
+.pr-rule b { font-size: var(--t-sm); color: var(--ink); }
+.pr-rule.is-auto { background: var(--st-approved-wash); border-color: color-mix(in srgb, var(--st-approved) 35%, transparent); }
+.pr-rule.is-auto span { color: var(--st-approved); font-weight: 600; }
+.pr-budget { display: flex; flex-direction: column; gap: 6px; }
+.pr-budget b { font-size: var(--t-meta); }
+
+/* Live preview in the request form: what happens when you press Send */
+.pr-preview {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: var(--s3) var(--s4); border-radius: var(--r-control);
+  background: var(--surface-2); border: 1px solid var(--line-2);
+}
+.pr-preview .spread b { font-size: var(--t-lede); }
+.pr-outcome { display: flex; align-items: center; gap: 7px; font-size: var(--t-meta); font-weight: 600; }
+.pr-outcome svg { width: 15px; height: 15px; flex-shrink: 0; }
+.pr-preview.is-auto { background: var(--st-approved-wash); border-color: color-mix(in srgb, var(--st-approved) 35%, transparent); }
+.pr-preview.is-auto .pr-outcome { color: var(--st-approved); }
+.pr-preview.is-manager .pr-outcome, .pr-preview.is-owner .pr-outcome { color: var(--st-pending); }
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 @media (prefers-reduced-motion: reduce) {
