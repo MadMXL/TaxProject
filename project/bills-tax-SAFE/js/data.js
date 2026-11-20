@@ -268,6 +268,9 @@ const companyInfo = {
     email: 'macmaruay@gmail.com',
     taxId: '3 8399 00123 24',
     website: 'www.baigamgab.co',
+    // Purchase approval limits in THB (Admin → Company). Totals up to autoApprove are
+    // approved automatically, up to managerMax by a Manager, above that by the Owner.
+    purchaseLimits: { autoApprove: 3000, managerMax: 30000, techMonthly: 10000 },
     _seed: 2   // bump when these defaults change — stale localStorage below this is ignored
 };
 
@@ -281,18 +284,20 @@ let matSearchQuery = '';   // search in material costs tab
 // ── STOCK ─────────────────────────────────────────────────────
 // Materials the company keeps on hand. qty changes only through stockMoves
 // (Receive adds, Use subtracts, Count sets an exact figure). An item is "low"
-// when qty <= minQty and "out" when qty <= 0.
+// when qty <= minQty and "out" when qty <= 0. maxQty is the "full" level a purchase
+// request tops it up to; supplier / unitCost are the usual supplier and last price paid
+// (demo figures).
 let stockItems = [
-    { id: 'STK-001', name: 'สายไฟ THW 1×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 6,  minQty: 4,  updatedAt: '2026-11-03T03:10:00.000Z' },
-    { id: 'STK-002', name: 'สายไฟ VCT 2×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 2,  minQty: 3,  updatedAt: '2026-11-05T08:40:00.000Z' },
-    { id: 'STK-003', name: 'เบรกเกอร์ลูกย่อย 1P 20A',              category: 'electrical',   unit: 'ตัว',    qty: 24, minQty: 10, updatedAt: '2026-10-28T02:00:00.000Z' },
-    { id: 'STK-004', name: 'ท่อร้อยสาย EMT 1/2 นิ้ว',               category: 'electrical',   unit: 'เส้น',   qty: 40, minQty: 20, updatedAt: '2026-10-20T04:30:00.000Z' },
-    { id: 'STK-005', name: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)',        category: 'steel',        unit: 'กล่อง',  qty: 0,  minQty: 3,  updatedAt: '2026-11-06T09:15:00.000Z' },
-    { id: 'STK-006', name: 'เหล็กกล่อง 2×2 นิ้ว หนา 2.3 มม.',        category: 'steel',        unit: 'เส้น',   qty: 12, minQty: 10, updatedAt: '2026-10-30T07:00:00.000Z' },
-    { id: 'STK-007', name: 'ใบตัดเหล็ก 4 นิ้ว',                      category: 'steel',        unit: 'ใบ',     qty: 35, minQty: 20, updatedAt: '2026-10-22T01:45:00.000Z' },
-    { id: 'STK-008', name: 'ปูนซีเมนต์ปอร์ตแลนด์ 50 กก.',             category: 'construction', unit: 'ถุง',    qty: 8,  minQty: 10, updatedAt: '2026-11-04T06:20:00.000Z' },
-    { id: 'STK-009', name: 'ชุดซีลปั๊มน้ำหล่อเย็น',                  category: 'maintenance',  unit: 'ชุด',    qty: 3,  minQty: 2,  updatedAt: '2026-10-15T03:00:00.000Z' },
-    { id: 'STK-010', name: 'น้ำมันหล่อลื่นเครื่องจักร ISO 68',        category: 'maintenance',  unit: 'แกลลอน', qty: 5,  minQty: 2,  updatedAt: '2026-10-12T02:30:00.000Z' },
+    { id: 'STK-001', name: 'สายไฟ THW 1×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 6,  minQty: 4, maxQty: 10, supplier: 'ร้านเจริญการไฟฟ้า', unitCost: 1150, updatedAt: '2026-11-03T03:10:00.000Z' },
+    { id: 'STK-002', name: 'สายไฟ VCT 2×2.5 ตร.มม. (ม้วน 100 ม.)', category: 'electrical',   unit: 'ม้วน',   qty: 2,  minQty: 3, maxQty: 6, supplier: 'ร้านเจริญการไฟฟ้า', unitCost: 2850, updatedAt: '2026-11-05T08:40:00.000Z' },
+    { id: 'STK-003', name: 'เบรกเกอร์ลูกย่อย 1P 20A',              category: 'electrical',   unit: 'ตัว',    qty: 24, minQty: 10, maxQty: 30, supplier: 'ร้านเจริญการไฟฟ้า', unitCost: 145, updatedAt: '2026-10-28T02:00:00.000Z' },
+    { id: 'STK-004', name: 'ท่อร้อยสาย EMT 1/2 นิ้ว',               category: 'electrical',   unit: 'เส้น',   qty: 40, minQty: 20, maxQty: 60, supplier: 'ร้านเจริญการไฟฟ้า', unitCost: 95, updatedAt: '2026-10-20T04:30:00.000Z' },
+    { id: 'STK-005', name: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)',        category: 'steel',        unit: 'กล่อง',  qty: 0,  minQty: 3, maxQty: 6, supplier: 'บจก. ภูเก็ตเหล็กไทย', unitCost: 420, updatedAt: '2026-11-06T09:15:00.000Z' },
+    { id: 'STK-006', name: 'เหล็กกล่อง 2×2 นิ้ว หนา 2.3 มม.',        category: 'steel',        unit: 'เส้น',   qty: 12, minQty: 10, maxQty: 20, supplier: 'บจก. ภูเก็ตเหล็กไทย', unitCost: 520, updatedAt: '2026-10-30T07:00:00.000Z' },
+    { id: 'STK-007', name: 'ใบตัดเหล็ก 4 นิ้ว',                      category: 'steel',        unit: 'ใบ',     qty: 35, minQty: 20, maxQty: 50, supplier: 'บจก. ภูเก็ตเหล็กไทย', unitCost: 25, updatedAt: '2026-10-22T01:45:00.000Z' },
+    { id: 'STK-008', name: 'ปูนซีเมนต์ปอร์ตแลนด์ 50 กก.',             category: 'construction', unit: 'ถุง',    qty: 8,  minQty: 10, maxQty: 30, supplier: 'หจก. อันดามันวัสดุ', unitCost: 155, updatedAt: '2026-11-04T06:20:00.000Z' },
+    { id: 'STK-009', name: 'ชุดซีลปั๊มน้ำหล่อเย็น',                  category: 'maintenance',  unit: 'ชุด',    qty: 3,  minQty: 2, maxQty: 4, supplier: 'ร้านเจริญการไฟฟ้า', unitCost: 1800, updatedAt: '2026-10-15T03:00:00.000Z' },
+    { id: 'STK-010', name: 'น้ำมันหล่อลื่นเครื่องจักร ISO 68',        category: 'maintenance',  unit: 'แกลลอน', qty: 5,  minQty: 2, maxQty: 6, supplier: 'หจก. อันดามันวัสดุ', unitCost: 650, updatedAt: '2026-10-12T02:30:00.000Z' },
 ];
 
 // Every change to stock, newest last. type: 'in' (receive) | 'out' (use) | 'count' (stock-take).
@@ -302,6 +307,31 @@ let stockMoves = [
     { id: 'MOV-1003', itemId: 'STK-005', itemName: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)', type: 'out', qty: 2, after: 0, jobId: '', note: 'งานโครงหลังคา', date: '2026-11-06', at: '2026-11-06T09:15:00.000Z', by: 'wichai@baigamgab.co' },
 ];
 let stockFilter = 'all';     // 'all' | 'low' | 'out' | 'ok'
+
+// ── PURCHASE REQUESTS ─────────────────────────────────────────
+// Buying stock: request → approval by total (see purchasing.js) → ordered → received.
+// status: 'pending' | 'approved' | 'ordered' | 'received' | 'rejected' | 'cancelled'.
+// approvalLevel: 'auto' | 'manager' | 'owner'. Requests are never deleted, only cancelled.
+let purchaseRequests = [
+    { id: 'PR-2026-0003', date: '2026-10-27', itemId: 'STK-003', itemName: 'เบรกเกอร์ลูกย่อย 1P 20A', unit: 'ตัว', qty: 20,
+      supplier: 'ร้านเจริญการไฟฟ้า', unitPrice: 145, total: 2900, jobId: '', note: '', source: 'manual',
+      approvalLevel: 'auto', status: 'received',
+      requestedBy: 'wichai@baigamgab.co', requestedAt: '2026-10-27T02:10:00.000Z',
+      approvedBy: 'system', approvedAt: '2026-10-27T02:10:00.000Z',
+      orderedBy: 'preecha@baigamgab.co', orderedAt: '2026-10-27T03:00:00.000Z',
+      receivedBy: 'wichai@baigamgab.co', receivedAt: '2026-10-28T02:00:00.000Z', receivedQty: 20, receivedPrice: 145, receivedTotal: 2900 },
+    { id: 'PR-2026-0004', date: '2026-11-06', itemId: 'STK-005', itemName: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)', unit: 'กล่อง', qty: 6,
+      supplier: 'บจก. ภูเก็ตเหล็กไทย', unitPrice: 420, total: 2520, jobId: '', note: 'สร้างอัตโนมัติ: สต็อกถึงขั้นต่ำ', source: 'auto',
+      approvalLevel: 'auto', status: 'ordered',
+      requestedBy: 'system', requestedAt: '2026-11-06T09:15:00.000Z',
+      approvedBy: 'system', approvedAt: '2026-11-06T09:15:00.000Z',
+      orderedBy: 'preecha@baigamgab.co', orderedAt: '2026-11-06T10:05:00.000Z' },
+    { id: 'PR-2026-0005', date: '2026-11-07', itemId: 'STK-002', itemName: 'สายไฟ VCT 2×2.5 ตร.มม. (ม้วน 100 ม.)', unit: 'ม้วน', qty: 4,
+      supplier: 'ร้านเจริญการไฟฟ้า', unitPrice: 2850, total: 11400, jobId: '', note: 'เดินไฟไลน์ผลิต เอเชีย เมทัลเวิร์ค', source: 'manual',
+      approvalLevel: 'manager', status: 'pending',
+      requestedBy: 'wichai@baigamgab.co', requestedAt: '2026-11-07T01:40:00.000Z' },
+];
+let purchaseFilter = 'open';  // 'open' | 'pending' | 'approved' | 'ordered' | 'received' | 'closed' | 'all'
 let stockSearchQuery = '';
 
 // ── MONTHLY REPORT ────────────────────────────────────────────

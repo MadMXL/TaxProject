@@ -21,13 +21,14 @@ Verification is manual in the browser (test checklists are in `WORKFLOW-GUIDE.md
 
 ## Architecture
 
-**Global-script app.** `index.html` loads plain `<script>` tags in a fixed order — `data.js` → `firebase-config.js` → `functions.js` → `ui.js` → `stock.js` → `report.js` → `app.js` — and every file shares one global scope. There are no modules/imports; functions are called from inline `onclick="..."` attributes in generated HTML, so renaming a function means grepping the template strings too.
+**Global-script app.** `index.html` loads plain `<script>` tags in a fixed order — `data.js` → `firebase-config.js` → `functions.js` → `ui.js` → `stock.js` → `purchasing.js` → `report.js` → `app.js` — and every file shares one global scope. There are no modules/imports; functions are called from inline `onclick="..."` attributes in generated HTML, so renaming a function means grepping the template strings too.
 
 - `js/data.js` — seed data and all mutable global state (`quotations`, `purchaseOrders`, `poCosts`, `materialPrices`, `customers`, `products`, `companyInfo`, plus view/filter state like `currentView`, `listFilters`).
 - `js/firebase-config.js` — Firebase init, `showNotification()` (the "island" toast), and sync: `SYNCED_ARRAYS`, `loadFromFirebase()`, `setupRealtimeSync()`.
 - `js/functions.js` — actions/business logic: document form, approval workflow, soft delete/archive, customers, products, POs and costs, PDF generation (`generatePDF`).
 - `js/ui.js` — rendering. `renderApp()` rebuilds the whole `#app` via `innerHTML` template strings; `renderContent()` switches on `currentView`. Also `LANG` (en/th strings, read via `L(key)`), helpers `esc()` (HTML escaping — use it for all user data in templates), `fmt()`, `baht()`, icons.
 - `js/stock.js` — Stock page: items with minimum levels, Receive / Use / Count movements (`stockMoves`), low-stock alerts (`stockAlerts()`, banner, nav badge).
+- `js/purchasing.js` — Purchase Requests: approval by total (`approvalFor`, limits in `companyInfo.purchaseLimits`), automatic request when stock reaches its minimum (`autoRequestFor`), approve / order / receive (receiving updates stock, job costs and supplier prices).
 - `js/report.js` — Monthly Report: revenue from approved documents per month, email (mailto) and PDF export.
 - `js/app.js` — bootstrap on `DOMContentLoaded` (localStorage → Firebase → render → realtime listeners), localStorage persistence, `?doc=` QR deep-link handler.
 - `login.html` — has its own inline copy of the Firebase config; signs in and writes `userId/userEmail/userRole/userName` to `sessionStorage`. `index.html` redirects back to login if they're missing. `admin.html` is just a redirect (admin tools are now in-app).

@@ -422,16 +422,24 @@ function restoreRecord(listName, id, index, quiet = false) {
 // Fetch the newest ARCHIVE_PAGE records of each list. orderByChild + limitToLast
 // is a server-side query backed by the ".indexOn" rule, so this costs the same
 // whether the archive holds 200 records or 200,000.
+// Archived records are keyed by id; drop any whose key or id isn't an app-made id (see safeRecords).
+function safeArchiveList(obj) {
+    const out = {};
+    Object.entries(obj || {}).forEach(([k, r]) => { if (isSafeId(k) && r && isSafeId(r.id)) out[k] = r; });
+    return out;
+}
+
 function loadArchive(force = false) {
     if (archiveLoaded && !force) return Promise.resolve();
     if (!isFirebaseEnabled) {
         try { archive = JSON.parse(localStorage.getItem('archive') || '{}') || {}; } catch (e) { archive = {}; }
+        Object.keys(archive).forEach(l => { archive[l] = safeArchiveList(archive[l]); });
         archiveLoaded = true;
         return Promise.resolve();
     }
     return Promise.all(ARCHIVE_LISTS.map(listName =>
         database.ref('archive/' + listName).orderByChild('inactiveAt').limitToLast(ARCHIVE_PAGE).once('value')
-            .then(snap => { archive[listName] = snap.val() || {}; })  // includes this session's pending writes
+            .then(snap => { archive[listName] = safeArchiveList(snap.val()); })  // includes this session's pending writes
             .catch(e => console.warn('archive load failed', listName, e))
     )).then(() => { archiveLoaded = true; });
 }
@@ -517,7 +525,7 @@ function viewQuotation(id) {
     const itemsHtml = q.items.map(item => `
         <tr>
             <td class="cell-strong">${esc(item.name)}</td>
-            <td class="num muted">${item.qty}</td>
+            <td class="num muted">${esc(item.qty)}</td>
             <td class="num muted tnum">฿${fmt(item.price)}</td>
             <td class="num cell-strong tnum">฿${fmt(item.qty * item.price)}</td>
         </tr>`).join('');
@@ -797,7 +805,7 @@ function syncCustomersToFirebase() {
 function loadCustomersFromStorage() {
     const saved = localStorage.getItem('customers');
     if (saved) {
-        customers = JSON.parse(saved);
+        customers = safeRecords(JSON.parse(saved));
     }
 }
 
@@ -871,7 +879,7 @@ function fillProductInfo(nameInput) {
 function loadProductsFromStorage() {
     const saved = localStorage.getItem('products');
     if (saved) {
-        products = JSON.parse(saved);
+        products = safeRecords(JSON.parse(saved));
     }
 }
 
@@ -1320,8 +1328,8 @@ function poItemRow(item) {
     return `
     <div class="po-item-row" style="display:grid;grid-template-columns:1fr 66px 108px 34px;gap:6px;align-items:center;">
         <input class="po-item-name input" placeholder="Item name" value="${esc(it.name || '')}">
-        <input class="po-item-qty input" type="number" min="1" value="${it.qty || 1}" oninput="updatePOTotals()">
-        <input class="po-item-price input" type="number" min="0" placeholder="0.00" value="${it.price != null ? it.price : ''}" oninput="updatePOTotals()">
+        <input class="po-item-qty input" type="number" min="1" value="${esc(it.qty || 1)}" oninput="updatePOTotals()">
+        <input class="po-item-price input" type="number" min="0" placeholder="0.00" value="${it.price != null ? esc(it.price) : ''}" oninput="updatePOTotals()">
         <button type="button" class="icon-btn" onclick="removePOItem(this)">${icon('trash','')}</button>
     </div>`;
 }

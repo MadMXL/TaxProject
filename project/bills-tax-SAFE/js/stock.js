@@ -67,7 +67,9 @@ function stockBanner(onStockPage) {
       <div class="lb-list">${list}${alerts.length > 4 ? `<span class="lb-item muted">+${alerts.length - 4}</span>` : ''}</div>
     </div>
     ${onStockPage
-      ? (stockFilter !== 'low' ? `<button class="btn btn-secondary btn-sm" onclick="setStockFilter('low')">${L('stLow')} · ${alerts.length}</button>` : '')
+      ? (typeof purchaseSuggestions === 'function' && canRequestPurchase() && purchaseSuggestions().length
+          ? `<button class="btn btn-primary btn-sm" onclick="requestAllSuggested()">${icon('cart', '')}${esc(Lf('requestAll', { n: purchaseSuggestions().length }))}</button>`
+          : (stockFilter !== 'low' ? `<button class="btn btn-secondary btn-sm" onclick="setStockFilter('low')">${L('stLow')} · ${alerts.length}</button>` : ''))
       : `<button class="btn btn-secondary btn-sm" onclick="stockFilter='low';switchView('stock')">${L('openStock')} ${icon('arrowR', '')}</button>`}
   </div>`;
 }
@@ -129,6 +131,10 @@ function stockResultsHTML() {
     const mv = lastMoveFor(s.id);
     const when = mv ? mv.date : (s.updatedAt || '').slice(0, 10);
     const actions = [];
+    const pr = typeof openRequestFor === 'function' ? openRequestFor(s.id) : null;
+    if (st !== 'ok' && !pr && typeof canRequestPurchase === 'function' && canRequestPurchase()) {
+      actions.push(`<button class="act act-primary act-strong" onclick="openPRForm('${s.id}')">${icon('cart', 'act-ico')}${L('request')}</button>`);
+    }
     if (canMoveStock()) {
       actions.push(`<button class="act act-pos" onclick="openStockMove('${s.id}','in')">${icon('plus', 'act-ico')}${L('receive')}</button>`);
       actions.push(`<button class="act act-warn" onclick="openStockMove('${s.id}','out')" ${st === 'out' ? 'disabled' : ''}>${icon('minus', 'act-ico')}${L('use')}</button>`);
@@ -142,7 +148,7 @@ function stockResultsHTML() {
       <td><button class="row-btn cell-strong stock-name" onclick="openStockHistory('${s.id}')">${esc(s.name)}</button><div class="cell-sub">${esc(categoryLabel(s.category))}</div></td>
       <td class="num"><span class="qty qty-${st} tnum">${fmtQty(s.qty)}</span> <span class="cell-sub">${esc(s.unit)}</span></td>
       <td class="num muted tnum">${fmtQty(s.minQty)}</td>
-      <td>${stockPill(s)}</td>
+      <td>${stockPill(s)}${pr ? `<div class="cell-sub">${esc(Lf('onOrder', { id: pr.id }))}</div>` : ''}</td>
       <td><div class="muted tnum">${esc(when || '—')}</div>${mv ? `<div class="cell-sub">${esc(moveVerb(mv.type))} ${moveQtyText(mv)} · ${esc((mv.by || '').split('@')[0])}</div>` : ''}</td>
       <td style="white-space:nowrap;">${actions.join('')}</td>
     </tr>`;
@@ -305,8 +311,11 @@ function saveStockMove() {
   // Warn the moment an item crosses into low / out; otherwise a plain confirmation.
   const after = stockState(s);
   if (after !== 'ok' && after !== before) {
+    const pr = typeof autoRequestFor === 'function' ? autoRequestFor(s) : null;
+    if (pr) renderApp();
     showNotification('⚠️ ' + (after === 'out' ? Lf('nowOut', { name: s.name }) : Lf('nowLow', { name: s.name, n: fmtQty(s.qty), unit: s.unit })),
-      { type: 'warn', detail: `${L('minLevel')}: ${fmtQty(s.minQty)} ${s.unit}` });
+      { type: 'warn', detail: pr ? `${Lf('autoPrCreated', { id: pr.id })} · ${outcomeText(pr)}` : `${L('minLevel')}: ${fmtQty(s.minQty)} ${s.unit}`,
+        action: pr && canRequestPurchase() ? { label: L('purchases'), onClick: () => { purchaseFilter = 'open'; switchView('purchases'); } } : undefined });
   } else {
     showNotification('✅ ' + L('stockSaved'), { detail: `${s.name}: ${fmtQty(s.qty)} ${s.unit}` });
   }
@@ -386,8 +395,16 @@ function openStockItemForm(id) {
             : `<label class="field"><span class="field-label">${L('onHand')}</span>
               <input id="siQty" class="input tnum" type="number" inputmode="decimal" min="0" step="any" value="0"></label>`}
           <label class="field"><span class="field-label">${L('minLevel')} *</span>
-            <input id="siMin" class="input tnum" type="number" inputmode="decimal" min="0" step="any" required value="${s ? s.minQty : ''}" placeholder="${esc(L('minPh'))}"></label>
+            <input id="siMin" class="input tnum" type="number" inputmode="decimal" min="0" step="any" required value="${s ? esc(s.minQty) : ''}" placeholder="${esc(L('minPh'))}"></label>
         </div>
+        <div class="grid-2">
+          <label class="field"><span class="field-label">${L('fullLevel')}</span>
+            <input id="siMax" class="input tnum" type="number" inputmode="decimal" min="0" step="any" value="${s && s.maxQty != null ? esc(s.maxQty) : ''}"></label>
+          <label class="field"><span class="field-label">${L('lastPrice')}</span>
+            <input id="siCost" class="input tnum" type="number" inputmode="decimal" min="0" step="0.01" value="${s && s.unitCost != null ? esc(s.unitCost) : ''}"></label>
+        </div>
+        <label class="field"><span class="field-label">${L('usualSupplier')}</span>
+          <input id="siSupplier" class="input" maxlength="80" value="${esc(s && s.supplier ? s.supplier : '')}"></label>
         <div id="siError" class="alert-err hidden" role="alert"></div>
         <div class="dialog-foot">
           <button type="button" class="btn btn-secondary" onclick="closeStockSheet()">${L('cancel')}</button>
@@ -410,17 +427,24 @@ function saveStockItem(id) {
   if (!name) return fail(L('enterName'));
   if (!unit) return fail(L('unit') + ' *');
   if (!(minQty >= 0)) return fail(L('minLevel') + ' ≥ 0');
+  const maxQty = parseFloat(g('siMax'));
+  const unitCost = parseFloat(g('siCost'));
+  const buying = {
+    maxQty: maxQty > 0 ? roundQty(Math.max(maxQty, minQty)) : null,
+    supplier: g('siSupplier'),
+    unitCost: unitCost >= 0 ? roundQty(unitCost) : null,
+  };
 
   const now = new Date();
   const by = sessionStorage.getItem('userEmail') || '';
   if (id) {
     const s = stockItems.find(x => x.id === id);
     if (!s) return;
-    Object.assign(s, { name, unit, category: g('siCat'), minQty: roundQty(minQty), updatedAt: now.toISOString(), updatedBy: by });
+    Object.assign(s, { name, unit, category: g('siCat'), minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by });
   } else {
     const qty = Math.max(roundQty(parseFloat(g('siQty')) || 0), 0);
     const next = stockItems.reduce((m, s) => Math.max(m, parseInt(String(s.id).replace(/\D/g, ''), 10) || 0), 0) + 1;
-    const item = { id: 'STK-' + String(next).padStart(3, '0'), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), updatedAt: now.toISOString(), updatedBy: by };
+    const item = { id: 'STK-' + String(next).padStart(3, '0'), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by };
     stockItems.push(item);
     if (qty > 0) stockMoves.push({ id: 'MOV-' + now.getTime(), itemId: item.id, itemName: name, type: 'count', qty, after: qty, jobId: '', note: getLang() === 'th' ? 'ยอดยกมา' : 'Opening balance', date: localDateISO(now), at: now.toISOString(), by });
   }

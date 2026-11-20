@@ -25,6 +25,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `products` | array | Product / service catalogue | Yes |
 | `stockItems` | array | Materials kept on hand, with minimum levels | Yes |
 | `stockMoves` | array | Every stock change (receive / use / count) | Yes |
+| `purchaseRequests` | array | Requests to buy stock, their approval and delivery | Yes |
 | `companyInfo` | object | Seller details printed on every document | Yes |
 | `users/{uid}` | object per user | Name, email and role of each account | Admin pages only |
 | `archive/{list}/{id}` | object keyed by record ID | Soft-deleted and archived records | **No**, only on demand |
@@ -137,6 +138,9 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `unit` | string | Y | `กล่อง` | Unit of count. |
 | `qty` | number | Y | `0` | On hand, ≥ 0, 2 dp. Changed only by a stock move (or the opening balance when the item is created). |
 | `minQty` | number | Y | `3` | Minimum level, ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
+| `maxQty` | number \| null | N | `20` | Full level. A purchase request tops the item up to it; when empty, twice `minQty`. |
+| `supplier` | string | N | `บจก. ภูเก็ตเหล็กไทย` | Usual supplier; updated when goods are received. |
+| `unitCost` | number \| null | N | `520` | Last price paid per unit (THB); updated when goods are received. |
 | `updatedBy` / `updatedAt` | string | N | | Last change to the item or its quantity. |
 
 ## 6b. `stockMoves` (append-only log)
@@ -154,9 +158,34 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `date` | string (date) | Y | `2026-11-06` | |
 | `at` / `by` | string | Y | | Timestamp and user email. |
 
+## 6c. `purchaseRequests` (Technician / Manager / Admin write; never deleted)
+
+| Field | Type | Req | Example | Description / constraints |
+|---|---|---|---|---|
+| `id` | string | Y | `PR-2026-0005` | Primary key. `PR-YYYY-NNNN`, sequence per year. |
+| `date` | string (date) | Y | `2026-11-07` | Request date. The technician monthly limit counts requests by this date. |
+| `itemId` / `itemName` / `unit` | string | Y | `STK-002` | Foreign key → `stockItems.id`, with the name and unit copied at request time. |
+| `qty` | number | Y | `4` | > 0. Suggested as `maxQty − qty` of the item. |
+| `supplier` | string | N | `ร้านเจริญการไฟฟ้า` | Cheapest in `materialPrices` for this item name, else the item's usual supplier. |
+| `unitPrice` / `total` | number | Y | `2850` / `11400` | THB. `total = round2(qty × unitPrice)`. |
+| `jobId` | string | N | `PO20261015001` | Optional job. Foreign key → `purchaseOrders.id`. |
+| `note` | string | N | | ≤ 140 chars. |
+| `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its minimum). |
+| `approvalLevel` | enum | Y | `manager` | `auto` (total ≤ autoApprove, and a technician still within techMonthly) \| `manager` (≤ managerMax, or no price) \| `owner`. |
+| `status` | enum | Y | `pending` | `pending` → `approved` → `ordered` → `received`; or `rejected` / `cancelled`. Receiving is allowed from `approved` too. |
+| `requestedBy` / `requestedAt` | string | Y | `wichai@baigamgab.co` | `system` for automatic requests. |
+| `approvedBy` / `approvedAt` | string | N | | `system` when approved automatically. |
+| `rejectedBy` / `rejectedAt` / `rejectReason` | string | N | | Reason is required. |
+| `orderedBy` / `orderedAt` | string | N | | Set by Manager / Admin. |
+| `receivedBy` / `receivedAt` | string | N | | Receiving adds a `stockMoves` `in` entry, a `poCosts` material cost when `jobId` is set, and a `materialPrices` entry. |
+| `receivedQty` / `receivedPrice` / `receivedTotal` | number | N | | What actually arrived and its price. |
+| `cancelledBy` / `cancelledAt` | string | N | | Requests are cancelled, never deleted. |
+
+Approval rules: nobody approves their own request except Admin (the owner); a Manager approves only `manager`-level requests; technicians never approve. These limits are checked in the app; the database rules check only the role.
+
 ## 7. `companyInfo` (single object, Admin-only write)
 
-`name`, `address`, `phone`, `email`, `taxId`, `website` (strings), plus `_seed` (number, a version marker for the default values).
+`name`, `address`, `phone`, `email`, `taxId`, `website` (strings), plus `_seed` (number, a version marker for the default values) and `purchaseLimits` (object, THB: `autoApprove` default 3,000, `managerMax` default 30,000, `techMonthly` default 10,000; edited in Admin → Company).
 
 ## 8. `users/{uid}` (Admin / Manager write)
 

@@ -58,6 +58,36 @@ const LANG = {
     noRevenueHint:'Approved bills, invoices and tax invoices dated in this month appear here.',
     reportReady:'{m} revenue report is ready', viewReport:'View',
     reportEmailSubject:'SmartLedger revenue report: {m}',
+    // purchase requests
+    purchases:'Purchase Requests', shortPurchases:'Requests', systemUser:'System',
+    prSub:'{wait} waiting for approval · {open} open', newRequest:'New Request', requestTitle:'Request to buy', sendRequest:'Send request',
+    prRuleAuto:'Up to {a}', prRuleMgr:'{a} to {b}', prRuleOwner:'Above {b}',
+    roleManager:'Manager', roleOwner:'Owner', approvedAuto:'Approved automatically', approvedBy:'Approved by',
+    prMyMonth:'Your orders this month', prMonthLimit:'{used} of {limit}',
+    prSuggest:'Suggested orders', prSuggestSub:'At or below minimum, with no request yet. Quantity tops each item up to its full level.',
+    requestAll:'Request all ({n})', request:'Request', suggestedQty:'Suggested qty', estCost:'Est. cost', noPriceYet:'no price yet',
+    prOpen:'Open', prWaiting:'Waiting approval', prToOrder:'To order', prOrdered:'Ordered', prReceived:'Received', prClosed:'Rejected / cancelled',
+    stWaitingFor:'Waiting for {who}', stApprovedToOrder:'Approved, to order', stCancelled:'Cancelled',
+    markOrdered:'Mark ordered', cancelRequest:'Cancel request', keepRequest:'Keep it', noOwnApprove:'Your own request needs the Owner',
+    noRequests:'No purchase requests', noRequestsHint:'Requests appear here when stock reaches its minimum or someone asks to buy.',
+    fullLevelShort:'full', alreadyOpen:'{id} is already open for this item',
+    outcomeAuto:'Approved automatically when you send it', outcomeMgr:'Goes to a Manager for approval', outcomeOwner:'Goes to the Owner for approval',
+    outcomeMonthly:'Goes to a Manager: this passes your monthly limit ({used} of {limit} used)', outcomeNoPrice:'Goes to a Manager: enter a price to know the cost',
+    prCreatedAuto:'{id} approved automatically', prCreatedWait:'{id} sent to the {who} for approval',
+    prBatchMade:'{n} purchase requests created', prBatchDetail:'{auto} approved automatically · {wait} waiting for approval',
+    autoPrCreated:'Purchase request {id} created automatically',
+    approvePrTitle:'Approve {id}?', prApprovedMsg:'{id} approved', rejectPrTitle:'Reject {id}', prRejectedMsg:'{id} rejected',
+    orderedTitle:'Mark {id} as ordered?', orderedMsg:'Do this once you have placed the order with {s}.', prOrderedMsg:'{id} marked as ordered',
+    cancelPrTitle:'Cancel {id}?', prCancelledMsg:'{id} cancelled',
+    receiveNote:'Stock goes up, the cost is added to the job (if one is set), and the price is saved to Supplier Prices.',
+    prReceivedMsg:'{id} received, stock updated', onOrder:'On order: {id}',
+    waitingForYou:'{n} purchase requests are waiting for your approval', openPurchases:'Open requests',
+    fullLevel:'Full level (reorder up to)', usualSupplier:'Usual supplier', lastPrice:'Last price per unit (THB)',
+    limitsTitle:'Purchase approval limits', limitsNote:'Requests up to the first amount are approved automatically. Above it a Manager approves, and above the second amount the Owner approves. A technician stops getting automatic approval once their orders this month reach the monthly limit.',
+    limAuto:'Approved automatically up to (THB)', limMgr:'Manager approves up to (THB)', limTech:'Monthly limit per technician (THB)',
+    limitsSaved:'Approval limits saved', limitsError:'The Manager limit must be higher than the automatic limit',
+    purchasesMonth:'Materials received (purchases)',
+    evRequested:'requested', evApproved:'approved', evAutoApproved:'approved automatically', evOrdered:'ordered', evReceived:'received', evCancelled:'cancelled',
     newDoc:'New Document', manageUsers:'Users', signOut:'Sign out',
     draft:'Draft', pending:'Pending', approved:'Approved', rejected:'Rejected',
     open:'Open', inProgress:'In Progress', completed:'Completed',
@@ -188,6 +218,36 @@ const LANG = {
     noRevenueHint:'บิล ใบแจ้งหนี้ และใบกำกับภาษีที่อนุมัติแล้วและลงวันที่ในเดือนนี้จะแสดงที่นี่',
     reportReady:'รายงานรายได้เดือน {m} พร้อมแล้ว', viewReport:'ดูรายงาน',
     reportEmailSubject:'รายงานรายได้ SmartLedger: {m}',
+    // purchase requests
+    purchases:'ขอซื้อวัสดุ', shortPurchases:'ขอซื้อ', systemUser:'ระบบ',
+    prSub:'รออนุมัติ {wait} รายการ · ยังไม่ปิด {open} รายการ', newRequest:'ขอซื้อใหม่', requestTitle:'ขอซื้อวัสดุ', sendRequest:'ส่งคำขอ',
+    prRuleAuto:'ไม่เกิน {a}', prRuleMgr:'{a} ถึง {b}', prRuleOwner:'เกิน {b}',
+    roleManager:'ผู้จัดการ', roleOwner:'เจ้าของ', approvedAuto:'อนุมัติอัตโนมัติ', approvedBy:'อนุมัติโดย',
+    prMyMonth:'ยอดสั่งซื้อของคุณเดือนนี้', prMonthLimit:'{used} จาก {limit}',
+    prSuggest:'รายการที่ควรสั่งซื้อ', prSuggestSub:'ถึงหรือต่ำกว่าขั้นต่ำและยังไม่มีคำขอ จำนวนที่แนะนำคือเติมให้ถึงระดับเต็ม',
+    requestAll:'ขอซื้อทั้งหมด ({n})', request:'ขอซื้อ', suggestedQty:'จำนวนแนะนำ', estCost:'ราคาโดยประมาณ', noPriceYet:'ยังไม่มีราคา',
+    prOpen:'ยังไม่ปิด', prWaiting:'รออนุมัติ', prToOrder:'รอสั่งซื้อ', prOrdered:'สั่งแล้ว', prReceived:'รับของแล้ว', prClosed:'ไม่อนุมัติ / ยกเลิก',
+    stWaitingFor:'รอ{who}อนุมัติ', stApprovedToOrder:'อนุมัติแล้ว รอสั่ง', stCancelled:'ยกเลิก',
+    markOrdered:'สั่งซื้อแล้ว', cancelRequest:'ยกเลิกคำขอ', keepRequest:'เก็บไว้', noOwnApprove:'คำขอของคุณเองต้องให้เจ้าของอนุมัติ',
+    noRequests:'ยังไม่มีคำขอซื้อ', noRequestsHint:'คำขอจะแสดงที่นี่เมื่อสต็อกถึงขั้นต่ำ หรือมีผู้ขอซื้อ',
+    fullLevelShort:'ระดับเต็ม', alreadyOpen:'มีคำขอ {id} สำหรับรายการนี้อยู่แล้ว',
+    outcomeAuto:'อนุมัติอัตโนมัติทันทีที่ส่ง', outcomeMgr:'ส่งให้ผู้จัดการอนุมัติ', outcomeOwner:'ส่งให้เจ้าของอนุมัติ',
+    outcomeMonthly:'ส่งให้ผู้จัดการ: เกินวงเงินรายเดือนของคุณ (ใช้ไป {used} จาก {limit})', outcomeNoPrice:'ส่งให้ผู้จัดการ: ใส่ราคาเพื่อดูยอดรวม',
+    prCreatedAuto:'{id} อนุมัติอัตโนมัติแล้ว', prCreatedWait:'ส่ง {id} ให้{who}อนุมัติแล้ว',
+    prBatchMade:'สร้างคำขอซื้อ {n} รายการ', prBatchDetail:'อนุมัติอัตโนมัติ {auto} · รออนุมัติ {wait}',
+    autoPrCreated:'สร้างคำขอซื้อ {id} อัตโนมัติแล้ว',
+    approvePrTitle:'อนุมัติ {id}?', prApprovedMsg:'อนุมัติ {id} แล้ว', rejectPrTitle:'ไม่อนุมัติ {id}', prRejectedMsg:'ไม่อนุมัติ {id}',
+    orderedTitle:'บันทึกว่าสั่งซื้อ {id} แล้ว?', orderedMsg:'กดเมื่อสั่งซื้อกับ {s} เรียบร้อยแล้ว', prOrderedMsg:'บันทึกการสั่งซื้อ {id} แล้ว',
+    cancelPrTitle:'ยกเลิก {id}?', prCancelledMsg:'ยกเลิก {id} แล้ว',
+    receiveNote:'สต็อกจะเพิ่มขึ้น ต้นทุนถูกบันทึกเข้างาน (ถ้าระบุงาน) และราคาจะถูกเก็บในหน้าเทียบราคาผู้ขาย',
+    prReceivedMsg:'รับของ {id} แล้ว สต็อกอัปเดตแล้ว', onOrder:'สั่งซื้อแล้ว: {id}',
+    waitingForYou:'มีคำขอซื้อ {n} รายการรอคุณอนุมัติ', openPurchases:'เปิดคำขอซื้อ',
+    fullLevel:'ระดับเต็ม (สั่งเติมให้ถึง)', usualSupplier:'ผู้ขายประจำ', lastPrice:'ราคาล่าสุดต่อหน่วย (บาท)',
+    limitsTitle:'วงเงินอนุมัติการสั่งซื้อ', limitsNote:'คำขอไม่เกินวงเงินแรกอนุมัติอัตโนมัติ เกินจากนั้นผู้จัดการอนุมัติ และเกินวงเงินที่สองเจ้าของอนุมัติ ช่างจะไม่ได้รับการอนุมัติอัตโนมัติเมื่อยอดสั่งซื้อของเดือนถึงวงเงินรายเดือน',
+    limAuto:'อนุมัติอัตโนมัติไม่เกิน (บาท)', limMgr:'ผู้จัดการอนุมัติไม่เกิน (บาท)', limTech:'วงเงินรายเดือนต่อช่าง (บาท)',
+    limitsSaved:'บันทึกวงเงินอนุมัติแล้ว', limitsError:'วงเงินผู้จัดการต้องสูงกว่าวงเงินอนุมัติอัตโนมัติ',
+    purchasesMonth:'วัสดุที่รับเข้า (ซื้อ)',
+    evRequested:'ขอซื้อ', evApproved:'อนุมัติ', evAutoApproved:'อนุมัติอัตโนมัติ', evOrdered:'สั่งซื้อ', evReceived:'รับของ', evCancelled:'ยกเลิก',
     newDoc:'เอกสารใหม่', manageUsers:'ผู้ใช้', signOut:'ออกจากระบบ',
     draft:'ร่าง', pending:'รออนุมัติ', approved:'อนุมัติแล้ว', rejected:'ปฏิเสธ',
     open:'เปิด', inProgress:'กำลังดำเนินการ', completed:'เสร็จสิ้น',
@@ -350,6 +410,7 @@ const IC = {
   chevL:'<path d="M15 6l-6 6 6 6"/>',
   minus:'<path d="M5 12h14"/>',
   clipboard:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11l2 2 4-4M9 17h6"/>',
+  cart:'<path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
 };
 function icon(name, cls){
   return `<svg class="${cls||''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[name]||''}</svg>`;
@@ -462,6 +523,7 @@ function navModel(role) {
     { label: L('grpOps'), items: [
         item('po', 'po', L('po'), { short: L('shortJobs') }),
         !sales && item('stock', 'stock', L('stock'), { badge: low }),
+        !sales && item('purchases', 'cart', L('purchases'), { badge: mgr ? waitingForMe() : toReceiveCount(), short: L('shortPurchases') }),
         !sales && item('materials', 'tag', L('materials'), { short: L('shortPrices') }),
       ].filter(Boolean) },
     { label: L('grpAdmin'), items: role === 'admin' ? [
@@ -476,9 +538,9 @@ function navModel(role) {
   // Phone tab bar: the pages each role opens most, then "More" for the rest.
   const priority = {
     sales:      ['bills', 'new', 'customers', 'po'],
-    technician: ['bills', 'po', 'stock', 'materials'],
-    manager:    ['dashboard', 'bills', 'stock', 'po'],
-    admin:      ['dashboard', 'bills', 'stock', 'po'],
+    technician: ['bills', 'stock', 'purchases', 'po'],
+    manager:    ['dashboard', 'bills', 'purchases', 'stock'],
+    admin:      ['dashboard', 'bills', 'purchases', 'stock'],
   }[role] || ['bills'];
   const tabbar = priority.map(v => v === 'new' ? item('new', 'plus', L('newDoc')) : flat.find(it => it.view === v && !it.sub)).filter(Boolean);
   const overflow = flat.filter(it => !tabbar.includes(it));
@@ -536,6 +598,16 @@ function startupNotices() {
   const mgr = role === 'manager' || role === 'admin';
   const store = (fn) => { try { return fn(); } catch (e) { return null; } };
 
+  const waiting = mgr ? waitingForMe() : 0;
+  if (waiting && !store(() => sessionStorage.getItem('prWaitingShown'))) {
+    store(() => sessionStorage.setItem('prWaitingShown', '1'));
+    showNotification(Lf('waitingForYou', { n: waiting }), {
+      type: 'info',
+      action: { label: L('openPurchases'), onClick: () => { purchaseFilter = 'pending'; switchView('purchases'); } },
+    });
+    return;   // one island at a time
+  }
+
   const alerts = role !== 'sales' ? stockAlerts() : [];
   if (alerts.length && !store(() => sessionStorage.getItem('lowStockShown'))) {
     store(() => sessionStorage.setItem('lowStockShown', '1'));
@@ -589,6 +661,7 @@ function renderContent() {
       case 'dashboard': return renderDashboard();
       case 'report':    return renderReportView();
       case 'stock':     return renderStockView();
+      case 'purchases': return renderPurchasesView();
       case 'bills':     return renderBillsView();
       case 'customers': return renderCustomersView();
       case 'new':       return renderNewQuotation();
@@ -1338,7 +1411,37 @@ function renderCompanyPanel() {
       ${line('ci_website', th ? 'เว็บไซต์' : 'Website', companyInfo.website)}
     </div>
     <div><button class="btn btn-primary" onclick="saveCompanyInfo()">${L('saveChanges')}</button></div>
+  </div>
+  ${renderLimitsCard()}`;
+}
+
+// Purchase approval limits (see purchasing.js). Stored in companyInfo, which only Admin can write.
+function renderLimitsCard() {
+  const lim = purchaseLimits();
+  const f = (id, label, v) => `<label class="field"><span class="field-label">${label}</span><input id="${id}" class="input tnum" type="number" min="0" step="100" value="${esc(v)}"></label>`;
+  return `<div class="card card-pad stack">
+    <span class="card-title">${L('limitsTitle')}</span>
+    <div class="notice">${esc(L('limitsNote'))}</div>
+    <div class="grid-3">
+      ${f('lim_auto', L('limAuto'), lim.autoApprove)}
+      ${f('lim_mgr', L('limMgr'), lim.managerMax)}
+      ${f('lim_tech', L('limTech'), lim.techMonthly)}
+    </div>
+    <div id="lim_err" class="alert-err hidden" role="alert"></div>
+    <div><button class="btn btn-primary" onclick="saveLimits()">${L('saveChanges')}</button></div>
   </div>`;
+}
+
+function saveLimits() {
+  const n = id => Math.max(Number((document.getElementById(id) || {}).value) || 0, 0);
+  const lim = { autoApprove: n('lim_auto'), managerMax: n('lim_mgr'), techMonthly: n('lim_tech') };
+  const err = document.getElementById('lim_err');
+  if (lim.managerMax <= lim.autoApprove) { err.textContent = L('limitsError'); err.classList.remove('hidden'); return; }
+  companyInfo.purchaseLimits = lim;
+  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+  if (typeof syncCompanyInfoToFirebase === 'function') syncCompanyInfoToFirebase();
+  renderApp();
+  showNotification('✅ ' + L('limitsSaved'));
 }
 
 function saveCompanyInfo() {
@@ -1361,6 +1464,15 @@ function renderAuditPanel() {
     if (q.submittedAt) ev.push({ t: q.submittedAt, who: q.submittedBy, act: th ? 'ส่งตรวจสอบ' : 'submitted', doc: q.id });
     if (q.approvedAt)  ev.push({ t: q.approvedAt,  who: q.approvedBy,  act: th ? 'อนุมัติ'    : 'approved',  doc: q.id });
     if (q.rejectedAt)  ev.push({ t: q.rejectedAt,  who: q.rejectedBy,  act: th ? 'ปฏิเสธ'     : 'rejected',  doc: q.id, note: q.rejectionReason });
+  });
+  purchaseRequests.forEach(p => {
+    const doc = `${p.id} (${p.itemName}, ฿${fmt(p.total)})`;
+    if (p.requestedAt) ev.push({ t: p.requestedAt, who: p.requestedBy, act: L('evRequested'), doc });
+    if (p.approvedAt)  ev.push({ t: p.approvedAt,  who: p.approvedBy,  act: L(p.approvedBy === 'system' ? 'evAutoApproved' : 'evApproved'), doc: p.id });
+    if (p.rejectedAt)  ev.push({ t: p.rejectedAt,  who: p.rejectedBy,  act: th ? 'ไม่อนุมัติ' : 'rejected', doc: p.id, note: p.rejectReason });
+    if (p.orderedAt)   ev.push({ t: p.orderedAt,   who: p.orderedBy,   act: L('evOrdered'), doc: p.id });
+    if (p.receivedAt)  ev.push({ t: p.receivedAt,  who: p.receivedBy,  act: L('evReceived'), doc: p.id });
+    if (p.cancelledAt) ev.push({ t: p.cancelledAt, who: p.cancelledBy, act: L('evCancelled'), doc: p.id });
   });
   // Deletes and archiving live in the archive, which is fetched on demand.
   if (!archiveLoaded) loadArchive().then(() => { if (currentView === 'users' && adminTab === 'audit') renderApp(); });
@@ -1488,7 +1600,7 @@ function adminLoadUsers() {
           <td><span class="pill pill-plain ${rolePill[u.role] || 'pill-neutral'}">${esc(u.role) || '—'}</span></td>
           <td class="muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
           <td>
-            <select class="select" style="width:auto;padding:5px 8px;font-size:var(--t-micro);" onchange="adminSaveRole('${uid}','${u.role}',this)">
+            <select class="select" style="width:auto;padding:5px 8px;font-size:var(--t-micro);" data-uid="${esc(uid)}" data-role="${esc(u.role)}" onchange="adminSaveRole(this.dataset.uid,this.dataset.role,this)">
               <option value="sales" ${u.role === 'sales' ? 'selected' : ''}>Sales</option>
               <option value="technician" ${u.role === 'technician' ? 'selected' : ''}>Technician</option>
               ${!isManager ? `<option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>` : ''}
