@@ -17,7 +17,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 
 | Node | Shape | Holds | Loaded at start-up |
 |---|---|---|---|
-| `quotations` | array | Bills, invoices and tax invoices (all "documents") | Yes |
+| `quotations` | array | Quotations, bills, invoices and tax invoices (all "documents") | Yes |
 | `purchaseOrders` | array | Purchase orders before they become invoices | Yes |
 | `poCosts` | array | Cost lines recorded against a purchase order | Yes |
 | `materialPrices` | array | Price per unit per supplier, for comparison | Yes |
@@ -38,7 +38,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 |---|---|---|---|---|
 | `id` | string | Y | `DOC-2026-0913` | Primary key. `DOC-YYYY-NNNN`; documents converted from a PO use `QTYYYYMMDDNNN`. |
 | `date` | string (date) | Y | `2026-09-15` | Document date. Used by the date-range filter, grouping and archiving. |
-| `docType` | enum | Y | `tax-invoice` | `bill` \| `invoice` \| `tax-invoice`. |
+| `docType` | enum | Y | `tax-invoice` | `quotation` \| `bill` \| `invoice` \| `tax-invoice`. A quotation is a price offer: never counted as revenue and never owed. |
 | `customer` | string | Y | `บริษัท ศิริวัฒน์ก่อสร้าง จำกัด` | Customer name (copied, not a foreign key). Used by the customer filter. |
 | `customerEmail` | string | N | `contact@siriwat.co.th` | |
 | `customerAddress` | string | N | | |
@@ -59,6 +59,19 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `redoAt` | string (timestamp) | N | | Sent back to Sales for revision. |
 | `resubmittedAt` | string (timestamp) | N | | Fixed and resubmitted. |
 | `fromPO` | string | N | `PO20260915001` | Source purchase order when converted. Foreign key → `purchaseOrders.id`. |
+| `dueDate` | string (date) | N | `2026-10-13` | Invoices and tax invoices only (empty for a bill). Defaults to `date` + 30 days in the form; older records without it use the same rule. Must not be before `date`. |
+| `validUntil` | string (date) | N | `2026-12-12` | Quotations only. Defaults to `date` + 30 days; must not be before `date`. After it passes with no answer the quotation shows as expired (it can still be accepted). |
+| `acceptedBy` / `acceptedAt` | string | N | | Quotations: the customer accepted (recorded by Sales, Manager or Admin). |
+| `jobId` | string | N | `PO20261120001` | Quotations: the job opened on acceptance. Foreign key → `purchaseOrders.id`. |
+| `declinedBy` / `declinedAt` / `declineReason` | string | N | `ราคาสูงไป` | Quotations: the customer declined; the reason is required. |
+| `fromQuotation` | string | N | `DOC-2026-1101` | Invoices made from a job that came from a quotation. Foreign key → `quotations.id`. |
+| `payments` | array of Payment | N | | Money received against an approved invoice / tax invoice; see 1b. Never deleted, only voided. |
+
+**Payment status** is calculated, not stored. A bill (ใบเสร็จ) is a receipt, so it is paid when issued and has no payments. For an approved invoice or tax invoice:
+
+- *settled* = Σ (`amount` + `wht`) of payments without `voidedAt`
+- *balance* = `total` − settled → **paid** when 0, **part paid** when something is settled, otherwise **unpaid**
+- **overdue** when not paid and today is after `dueDate`
 
 ### 1a. Item (inside `quotations.items` and `purchaseOrders.items`)
 
@@ -68,6 +81,22 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `description` | string | N | Detail line (documents only). |
 | `qty` | number | Y | > 0. |
 | `price` | number | Y | Unit price ≥ 0. |
+
+### 1b. Payment (inside `quotations.payments`)
+
+| Field | Type | Req | Example | Description / constraints |
+|---|---|---|---|---|
+| `id` | string | Y | `PAY-MI3K2Q8Z` | `PAY-` + time stamp in base 36. |
+| `date` | string (date) | Y | `2026-10-10` | Day the money arrived. Not in the future. Used for "Money received" in the Monthly Report. |
+| `amount` | number | Y | `124800` | Cash received, ≥ 0. |
+| `wht` | number | Y | `3600` | Withholding tax (หัก ณ ที่จ่าย) the customer deducted and paid to the Revenue Department for us, ≥ 0. The "Withheld 3%" button fills 3% of the pre-VAT part of this payment. Settles the invoice like cash; the customer issues a 50 ทวิ certificate for it. |
+| `method` | enum | Y | `transfer` | `transfer` \| `promptpay` \| `cash` \| `cheque`. |
+| `ref` | string | N | `KBank 1010-552` | Transfer reference or cheque number. |
+| `note` | string | N | | |
+| `by` / `at` | string | Y | | Who recorded it (Sales, Manager or Admin) and when. |
+| `voidedBy` / `voidedAt` / `voidReason` | string | N | `Wrong amount typed` | Set when a Manager or Admin voids the payment. A voided payment no longer counts toward the balance. |
+
+Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-payment). These checks run in the browser only; the database rule for `quotations` checks sign-in, not role (future work, see `SECURITY.md`).
 
 ## 2. `purchaseOrders`
 
@@ -81,6 +110,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `notes` | string | N | | |
 | `status` | enum | Y | `open` | `open` → `in-progress` → `completed`. |
 | `linkedInvoiceId` | string \| null | N | `QT20261015015` | Set when converted. Foreign key → `quotations.id`. |
+| `fromQuotation` | string | N | `DOC-2026-1101` | Set when the job was opened by accepting a quotation (same items and totals). Foreign key → `quotations.id`. When converted, the invoice copies the quotation's tax ID, email, address and VAT setting. |
 | `createdBy` / `createdAt` | string | Y | | |
 
 ## 3. `poCosts`
