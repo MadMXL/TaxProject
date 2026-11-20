@@ -1,0 +1,10 @@
+# The app is a static site in project/bills-tax-SAFE/ and must be served as the
+# web root (service worker at /service-worker.js, manifest uses / paths).
+[build]
+  publish = "project/bills-tax-SAFE"
+
+# Always revalidate the service worker so new deploys are picked up.
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"
