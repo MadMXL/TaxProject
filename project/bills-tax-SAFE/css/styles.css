@@ -612,9 +612,11 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
   padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3);
 }
 .fieldset > h3 { font-size: var(--t-meta); font-weight: 700; color: var(--ink); }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s3); }
-@media (max-width: 520px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+/* minmax(0,…) not 1fr: a plain 1fr column grows to its widest child (a table, a chart)
+   and pushes the page sideways on phones; with 0 the child scrolls inside .table-wrap. */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+@media (max-width: 520px) { .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); } }
 
 .notice {
   background: var(--accent-wash); color: var(--accent);
@@ -950,7 +952,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 .month-pending svg { width: 15px; height: 15px; flex-shrink: 0; }
 .month-pending b { font-weight: 700; }
 .report-grid { align-items: start; }
-@media (max-width: 900px) { .report-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .report-grid { grid-template-columns: minmax(0, 1fr); } }
 .table tfoot td { padding: 10px 14px; background: var(--surface-2); border-top: 1px solid var(--line-2); }
 .share { display: flex; align-items: center; gap: 8px; font-size: var(--t-micro); color: var(--ink-2); }
 .share .meter { width: 96px; flex-shrink: 0; }
