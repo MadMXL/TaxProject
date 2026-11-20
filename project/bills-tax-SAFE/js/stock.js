@@ -132,8 +132,9 @@ function stockResultsHTML() {
     const when = mv ? mv.date : (s.updatedAt || '').slice(0, 10);
     const actions = [];
     const pr = typeof openRequestFor === 'function' ? openRequestFor(s.id) : null;
-    if (st !== 'ok' && !pr && typeof canRequestPurchase === 'function' && canRequestPurchase()) {
-      actions.push(`<button class="act act-primary act-strong" onclick="openPRForm('${s.id}')">${icon('cart', 'act-ico')}${L('request')}</button>`);
+    // Any item can be requested; low / out items get the strong button.
+    if (!pr && typeof canRequestPurchase === 'function' && canRequestPurchase()) {
+      actions.push(`<button class="act ${st !== 'ok' ? 'act-primary act-strong' : ''}" onclick="openPRForm('${s.id}')">${icon('cart', 'act-ico')}${L('request')}</button>`);
     }
     if (canMoveStock()) {
       actions.push(`<button class="act act-pos" onclick="openStockMove('${s.id}','in')">${icon('plus', 'act-ico')}${L('receive')}</button>`);
