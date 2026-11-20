@@ -197,7 +197,8 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 | `itemId` / `itemName` / `unit` | string | Y | `STK-002` | Foreign key → `stockItems.id`, with the name and unit copied at request time. |
 | `qty` | number | Y | `4` | > 0. Suggested as `maxQty − qty` of the item. |
 | `supplier` | string | N | `ร้านเจริญการไฟฟ้า` | Cheapest in `materialPrices` for this item name, else the item's usual supplier. |
-| `unitPrice` / `total` | number | Y | `2850` / `11400` | THB. `total = round2(qty × unitPrice)`. |
+| `unitPrice` / `total` | number | Y | `2850` / `11400` | THB. `total = round2(qty × unitPrice)`. `0` = price not known yet: the requester may leave it empty (it is pre-filled when Supplier Prices or the item's last cost knows it); such a request goes to a Manager, who adds the price before approving. |
+| `pricedBy` / `pricedAt` | string | N | | Set when an approver added the price. If the priced total is above `managerMax`, `approvalLevel` becomes `owner` and the request stays `pending` for the Owner. |
 | `jobId` | string | N | `PO20261015001` | Optional job. Foreign key → `purchaseOrders.id`. |
 | `note` | string | N | | ≤ 140 chars. |
 | `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its minimum). |

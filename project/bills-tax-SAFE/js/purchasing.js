@@ -157,7 +157,9 @@ function prActions(p) {
   const a = [];
   const me = myEmail();
   if (canApprove(p)) {
-    a.push(`<button class="act act-pos act-strong" onclick="approvePR('${p.id}')">${L('approve')}</button>`);
+    a.push(p.total > 0
+      ? `<button class="act act-pos act-strong" onclick="approvePR('${p.id}')">${L('approve')}</button>`
+      : `<button class="act act-primary act-strong" onclick="openPricePR('${p.id}')">${L('addPrice')}</button>`);
     a.push(`<button class="act act-danger" onclick="rejectPR('${p.id}')">${L('reject')}</button>`);
   }
   if (p.status === 'approved' && canOrderPurchase()) a.push(`<button class="act act-primary" onclick="markPROrdered('${p.id}')">${L('markOrdered')}</button>`);
@@ -191,7 +193,7 @@ function renderPurchasesView() {
       <td style="white-space:nowrap;"><div class="cell-strong">${esc(p.id)}</div><div class="cell-sub">${esc(p.date)} · ${esc(who(p.requestedBy))}</div></td>
       <td><div class="cell-strong">${esc(p.itemName)}</div><div class="cell-sub tnum">${fmtQty(p.qty)} ${esc(p.unit)}${job}</div>${p.note ? `<div class="cell-sub">${esc(p.note)}</div>` : ''}</td>
       <td><div>${esc(p.supplier || '—')}</div><div class="cell-sub tnum">${p.unitPrice > 0 ? '฿' + fmt(p.unitPrice) + ' / ' + esc(p.unit) : esc(L('noPriceYet'))}</div></td>
-      <td class="num cell-strong tnum">${baht(p.status === 'received' && p.receivedTotal != null ? p.receivedTotal : p.total)}</td>
+      <td class="num cell-strong tnum">${p.status === 'received' && p.receivedTotal != null ? baht(p.receivedTotal) : p.total > 0 ? baht(p.total) : '<span class="muted">—</span>'}</td>
       <td>${prStatusPill(p)}${p.status === 'rejected' && p.rejectReason ? `<div class="cell-sub" style="color:var(--st-rejected);">“${esc(p.rejectReason)}”</div>` : ''}
         ${p.approvedBy ? `<div class="cell-sub">${esc(p.approvedBy === SYSTEM_USER ? L('approvedAuto') : L('approvedBy') + ' ' + who(p.approvedBy))}</div>` : ''}</td>
       <td style="white-space:nowrap;">${prActions(p)}</td>
@@ -265,8 +267,9 @@ function openPRForm(itemId) {
         <div class="grid-2">
           <label class="field"><span id="prQtyLabel" class="field-label">${L('qty')} *</span>
             <input id="prQty" class="input tnum" type="number" inputmode="decimal" min="0" step="any" required></label>
-          <label class="field"><span class="field-label">${L('pricePerUnit')} *</span>
-            <input id="prPrice" class="input tnum" type="number" inputmode="decimal" min="0" step="0.01" required></label>
+          <label class="field"><span class="field-label">${L('estPrice')}</span>
+            <input id="prPrice" class="input tnum" type="number" inputmode="decimal" min="0" step="0.01">
+            <span id="prPriceHint" class="cell-sub"></span></label>
         </div>
         <label class="field"><span class="field-label">${L('supplierCol')}</span>
           <input id="prSupplier" class="input" list="prSuppliers" maxlength="80">
@@ -296,6 +299,9 @@ function fillPRFromItem() {
   document.getElementById('prQty').value = suggestedQty(s);
   document.getElementById('prPrice').value = q.unitPrice || '';
   document.getElementById('prSupplier').value = q.supplier || '';
+  // The person asking often doesn't know the price; a known one is filled in, otherwise the approver adds it.
+  document.getElementById('prPriceHint').textContent = q.unitPrice > 0
+    ? Lf('priceKnown', { s: q.supplier ? ` (${q.supplier})` : '' }) : L('priceUnknown');
   document.getElementById('prQtyLabel').textContent = `${L('qty')} (${s.unit}) *`;
   const open = openRequestFor(s.id);
   document.getElementById('prItemHint').textContent = `${L('onHand')} ${fmtQty(s.qty)} · ${L('minLevel')} ${fmtQty(s.minQty)} · ${L('fullLevelShort')} ${fmtQty(s.maxQty || s.minQty * 2)} ${s.unit}`
@@ -321,7 +327,8 @@ function updatePRPreview() {
 function savePR() {
   const s = stockItems.find(x => x.id === document.getElementById('prItem')?.value);
   const qty = parseFloat(document.getElementById('prQty').value);
-  const price = parseFloat(document.getElementById('prPrice').value);
+  const priceRaw = document.getElementById('prPrice').value.trim();
+  const price = priceRaw === '' ? 0 : parseFloat(priceRaw);   // empty = not known yet
   const err = document.getElementById('prError');
   const fail = m => { err.textContent = m; err.classList.remove('hidden'); };
   if (!s) return fail(L('enterName'));
@@ -333,7 +340,7 @@ function savePR() {
   closePRSheet();
   if (currentView === 'purchases') purchaseFilter = 'open';
   renderApp();
-  showNotification('✅ ' + outcomeText(p), { detail: `${p.itemName} · ${fmtQty(p.qty)} ${p.unit} · ฿${fmt(p.total)}` });
+  showNotification('✅ ' + outcomeText(p), { detail: `${p.itemName} · ${fmtQty(p.qty)} ${p.unit} · ${p.total > 0 ? '฿' + fmt(p.total) : L('noPriceYet')}` });
 }
 
 function prSheetKey(e) { if (e.key === 'Escape') closePRSheet(); }
@@ -348,6 +355,7 @@ function findPR(id) { return purchaseRequests.find(p => p.id === id); }
 async function approvePR(id) {
   const p = findPR(id);
   if (!p || !canApprove(p)) return;
+  if (!(p.total > 0)) return openPricePR(id);   // the limits need a real total
   if (!(await confirmDialog({ title: Lf('approvePrTitle', { id }), message: `${p.itemName} · ${fmtQty(p.qty)} ${p.unit} · ฿${fmt(p.total)}`, confirmLabel: L('approve') }))) return;
   Object.assign(p, { status: 'approved', approvedBy: myEmail(), approvedAt: new Date().toISOString() });
   persistPurchases(); renderApp();
@@ -380,6 +388,86 @@ async function cancelPR(id) {
   Object.assign(p, { status: 'cancelled', cancelledBy: myEmail(), cancelledAt: new Date().toISOString() });
   persistPurchases(); renderApp();
   showNotification('✅ ' + Lf('prCancelledMsg', { id }));
+}
+
+// ── Add the price (approver) ─────────────────────────────────
+// A request sent without a price waits for a Manager. The approver enters the
+// price; the limits then apply to the real total: within managerMax they approve
+// it on save, above it the request moves to the Owner (the Owner approves anything).
+function openPricePR(id) {
+  const p = findPR(id);
+  if (!p || !canApprove(p)) return;
+  closePRSheet();
+  const item = stockItems.find(s => s.id === p.itemId);
+  const q = item ? supplierQuote(item) : { supplier: p.supplier, unitPrice: 0 };
+  const suppliers = [...new Set(materialPrices.map(m => m.supplier).concat(stockItems.map(s => s.supplier)).filter(Boolean))];
+  const html = `
+  <div id="prSheet" class="scrim" onclick="if(event.target.id==='prSheet')closePRSheet()">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ppTitle" style="max-width:440px;">
+      <div class="sheet-head"><div><div class="k">${esc(p.id)} · ${esc(who(p.requestedBy))}</div><div id="ppTitle" class="h">${esc(Lf('addPriceTitle', { id: p.id }))}</div></div>
+        <button class="sheet-x" onclick="closePRSheet()" aria-label="${L('close')}">${icon('x', '')}</button></div>
+      <form class="sheet-body" onsubmit="event.preventDefault();savePricePR('${p.id}')" oninput="updatePricePreview('${p.id}')">
+        <div class="kv"><span class="field-label">${L('itemName')}</span><span class="cell-strong">${esc(p.itemName)} · ${fmtQty(p.qty)} ${esc(p.unit)}</span></div>
+        ${p.note ? `<div class="cell-sub">${esc(p.note)}</div>` : ''}
+        <div class="grid-2">
+          <label class="field"><span class="field-label">${L('pricePerUnit')} *</span>
+            <input id="ppPrice" class="input tnum" type="number" inputmode="decimal" min="0.01" step="0.01" required value="${q.unitPrice > 0 ? q.unitPrice : ''}"></label>
+          <label class="field"><span class="field-label">${L('supplierCol')}</span>
+            <input id="ppSupplier" class="input" list="ppSuppliers" maxlength="80" value="${esc(p.supplier || q.supplier || '')}">
+            <datalist id="ppSuppliers">${suppliers.map(x => `<option value="${esc(x)}"></option>`).join('')}</datalist></label>
+        </div>
+        <div id="ppPreview" class="pr-preview" role="status"></div>
+        <div id="ppError" class="alert-err hidden" role="alert"></div>
+        <div class="dialog-foot">
+          <button type="button" class="btn btn-secondary" onclick="closePRSheet()">${L('cancel')}</button>
+          <button id="ppSubmit" type="submit" class="btn btn-primary">${L('saveApprove')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.addEventListener('keydown', prSheetKey);
+  updatePricePreview(id);
+  document.getElementById('ppPrice').focus();
+}
+
+// Who decides once the price is known: the Owner above managerMax, otherwise the person pricing it.
+function pricedOutcome(p, total) {
+  const lim = purchaseLimits();
+  const level = total > lim.managerMax ? 'owner' : 'manager';
+  const approveNow = currentRole() === 'admin' || level === 'manager';
+  return { level, approveNow, lim };
+}
+
+function updatePricePreview(id) {
+  const p = findPR(id);
+  const box = document.getElementById('ppPreview');
+  if (!p || !box) return;
+  const price = parseFloat(document.getElementById('ppPrice').value) || 0;
+  const total = Math.round(p.qty * price * 100) / 100;
+  const o = pricedOutcome(p, total);
+  box.className = 'pr-preview is-' + (o.approveNow ? 'auto' : 'owner');
+  box.innerHTML = `<div class="spread"><span>${L('total')}</span><b class="tnum">${baht(total)}</b></div>
+    <div class="pr-outcome">${icon(o.approveNow ? 'check' : 'clipboard', '')}<span>${esc(o.approveNow ? L('priceYouApprove') : Lf('priceToOwner', { b: money0(o.lim.managerMax) }))}</span></div>`;
+  document.getElementById('ppSubmit').textContent = L(o.approveNow ? 'saveApprove' : 'sendToOwner');
+}
+
+function savePricePR(id) {
+  const p = findPR(id);
+  if (!p || !canApprove(p)) return;
+  const price = Math.round((parseFloat(document.getElementById('ppPrice').value) || 0) * 100) / 100;
+  const err = document.getElementById('ppError');
+  if (!(price > 0)) { err.textContent = L('priceNeeded'); err.classList.remove('hidden'); return; }
+  const now = new Date().toISOString();
+  const total = Math.round(p.qty * price * 100) / 100;
+  const o = pricedOutcome(p, total);
+  Object.assign(p, { unitPrice: price, total, supplier: document.getElementById('ppSupplier').value.trim() || p.supplier,
+    approvalLevel: o.level, pricedBy: myEmail(), pricedAt: now });
+  if (o.approveNow) Object.assign(p, { status: 'approved', approvedBy: myEmail(), approvedAt: now });
+  persistPurchases();
+  closePRSheet();
+  renderApp();
+  showNotification('✅ ' + Lf(o.approveNow ? 'prApprovedMsg' : 'prPricedOwner', { id }), { detail: `${p.itemName} · ${fmtQty(p.qty)} ${p.unit} · ฿${fmt(total)}` });
 }
 
 // ── Receive goods ────────────────────────────────────────────
