@@ -27,9 +27,11 @@ A bilingual (Thai and English) ledger built around this company's own workflow: 
 
 ## Operating Context
 
-- Document types: bill (ใบเสร็จ), invoice (ใบแจ้งหนี้), tax invoice (ใบกำกับภาษี). Flat 7% VAT, THB to two decimals.
+- Document types: quotation (ใบเสนอราคา), bill (ใบเสร็จ), invoice (ใบแจ้งหนี้), tax invoice (ใบกำกับภาษี). Flat 7% VAT, THB to two decimals.
+- A job starts with a quotation: approved like any document, then the customer accepts (a job opens with the same items) or declines (with a reason). It has a valid-until date (30 days by default) and is never counted as revenue. Full chain: quotation → job (costs, profit before VAT) → invoice → payment.
 - Status flow: draft → pending → approved | rejected. Rejected documents go back to Sales.
 - Jobs (stored as `purchaseOrders`) go open → in progress → completed. A completed job becomes an invoice.
+- Approved invoices and tax invoices are owed until paid. Each has a due date (document date + 30 days by default). Sales, Manager or Admin record payments, which may include withholding tax (usually 3%) deducted by the customer. Unpaid documents past their due date are overdue and appear on the Overview, in the customer panel and at sign-in. A bill is a receipt, so it is paid when issued.
 - Material prices are recorded per supplier to find the cheapest source.
 - Stock is changed by hand: "Receive" adds, "Use" subtracts and can name a job. Each item has a minimum level. At or below it, the app shows a warning.
 - The monthly revenue report is in the app. "Email this report" opens the user's own mail app with the summary filled in, and "Download PDF" saves it. There is no server-side or automatic email.

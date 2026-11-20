@@ -177,6 +177,29 @@ npx serve
 
 ---
 
+### **Test 4: Payments (money owed)**
+- [ ] Create an **Invoice**: a Due date appears, set to the document date + 30 days; change the document date and the due date follows; a **Bill** has no due date
+- [ ] Set the due date before the document date → the form refuses to save
+- [ ] Approve the invoice → Documents shows "Due …" under the status and a **Record payment** button
+- [ ] Record part of the total → pill changes to "Part paid", the balance goes down
+- [ ] Try an amount above the balance → refused with "That is ฿… more than is owed"
+- [ ] Record the rest with **Withheld 3%** → WHT = 3% of the pre-VAT part, the preview says "This pays the invoice in full", pill becomes "Paid"
+- [ ] As Manager / Admin, **Void** a payment with a reason → it is struck through, the balance comes back, the Activity Log shows it
+- [ ] As Sales: can record but not void; as Technician: no payment buttons or chips
+- [ ] An approved invoice past its due date shows "N days overdue", appears under the **Overdue** chip, on the Overview "Waiting for payment" card, in the customer panel, and as a notice at sign-in
+- [ ] Monthly Report shows **Money received** (payments + bills of that month) and **Tax withheld by customers**; the CSV export has Due date / Paid / Balance columns; the PDF shows the due date
+
+### **Test 5: Quotation → job → invoice**
+- [ ] New Document → **Quotation**: the date field reads "Valid until" (+30 days); switching to Invoice changes it to "Due date"
+- [ ] Submit and approve the quotation → it shows "Waiting for customer" with **Accept** / **Decline**; Overview revenue and the Monthly Report do **not** include it
+- [ ] **Accept** → a job opens on Jobs & Costs with the same items and "From quotation DOC-…"; the quotation shows "Accepted · Job PO…"
+- [ ] Add a cost to the job → the Costs panel shows revenue **before VAT** − cost = profit
+- [ ] Start the job → Convert to invoice → the invoice keeps the customer's tax ID and email
+- [ ] Another quotation → **Decline** with a reason → "Declined" with the reason; Activity Log shows accept / decline
+- [ ] A quotation past its valid-until date with no answer shows "Expired"; the PDF prints "Valid until" and the quotation terms
+
+---
+
 ## 🔧 TROUBLESHOOTING:
 
 ### **Problem: Login fails**
@@ -248,7 +271,7 @@ console.log(localStorage.getItem('userRole'));
 
 - [ ] Add email notifications
 - [ ] Add PDF with QR code
-- [ ] Add payment tracking
+- [x] Add payment tracking (due dates, payments with withholding tax, overdue alerts)
 - [ ] Add advanced analytics
 - [ ] Add export to Excel
 

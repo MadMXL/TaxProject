@@ -9,7 +9,7 @@
 
 const DOC_TYPES = ['bill', 'invoice', 'tax-invoice'];
 function docTypeName(t) {
-  return getLang() === 'th' ? ({ 'bill': 'ใบเสร็จ', 'invoice': 'ใบแจ้งหนี้', 'tax-invoice': 'ใบกำกับภาษี' }[t] || t) : getDocTypeLabel(t);
+  return getLang() === 'th' ? ({ 'quotation': 'ใบเสนอราคา', 'bill': 'ใบเสร็จ', 'invoice': 'ใบแจ้งหนี้', 'tax-invoice': 'ใบกำกับภาษี' }[t] || t) : getDocTypeLabel(t);
 }
 
 function shiftMonth(ym, d) {
@@ -31,7 +31,7 @@ function reportMonths() {
   return [...set].sort().reverse();
 }
 function defaultReportMonth() {
-  const months = quotations.filter(q => q.status === 'approved').map(q => (q.date || '').slice(0, 7)).filter(Boolean).sort();
+  const months = quotations.filter(isSale).map(q => (q.date || '').slice(0, 7)).filter(Boolean).sort();
   return months.length ? months[months.length - 1] : localDateISO().slice(0, 7);
 }
 function activeReportMonth() {
@@ -41,7 +41,7 @@ function activeReportMonth() {
 function setReportMonth(ym) { reportMonth = ym; renderApp(); }
 
 function monthStats(ym) {
-  const inMonth = quotations.filter(q => (q.date || '').slice(0, 7) === ym);
+  const inMonth = quotations.filter(q => !isQuote(q) && (q.date || '').slice(0, 7) === ym);   // quotations are offers, not revenue
   const approved = inMonth.filter(q => q.status === 'approved');
   const pending = inMonth.filter(q => q.status === 'pending');
   const sum = (list, k) => r2(list.reduce((s, q) => s + (Number(q[k]) || 0), 0));
@@ -69,6 +69,7 @@ function monthStats(ym) {
     ym, revenue, net: sum(approved, 'subtotal'), vat: sum(approved, 'tax'), count: approved.length,
     pendingCount: pending.length, pendingTotal: sum(pending, 'total'),
     byType, customersTop, jobCosts, purchased,
+    received: moneyReceived(ym),   // cash basis: what actually came in this month (payments.js)
   };
 }
 
@@ -157,6 +158,8 @@ function renderReportView() {
           <tfoot><tr><td class="cell-strong">${L('total')}</td><td class="num tnum cell-strong">${s.count}</td><td class="num tnum cell-strong">${baht(s.net)}</td><td class="num tnum cell-strong">${baht(s.vat)}</td><td class="num tnum cell-strong">${baht(s.revenue)}</td></tr></tfoot>
         </table></div>
         <div class="card-pad" style="padding-top:var(--s2);">
+          ${kv(L('received'), '฿' + fmt(s.received.cash), 'var(--pos)')}
+          ${s.received.wht ? kv(L('whtMonth'), '฿' + fmt(s.received.wht), 'var(--ink-2)') : ''}
           ${kv(L('jobCosts'), '฿' + fmt(s.jobCosts), 'var(--ink-2)')}
           ${kv(L('purchasesMonth'), '฿' + fmt(s.purchased), 'var(--ink-2)')}
           ${kv(L('grossMargin') + (th ? ' (ก่อนภาษี)' : ' (before VAT)'), '฿' + fmt(r2(s.net - s.jobCosts)), s.net - s.jobCosts >= 0 ? 'var(--pos)' : 'var(--neg)')}
@@ -188,6 +191,8 @@ function reportText(ym) {
     `${L('outputVat')}: ${B(s.vat)}`,
     `${L('docsApproved')}: ${s.count}`,
     s.pendingCount ? `${L('notCounted')}: ${Lf('pendingAmt', { n: s.pendingCount, amt: B(s.pendingTotal) })}` : '',
+    `${L('received')}: ${B(s.received.cash)}`,
+    ...(s.received.wht ? [`${L('whtMonth')}: ${B(s.received.wht)}`] : []),
     `${L('jobCosts')}: ${B(s.jobCosts)}`,
     `${L('purchasesMonth')}: ${B(s.purchased)}`,
     '',
@@ -282,6 +287,8 @@ function generateReportPDF() {
     F('normal'); doc.setFontSize(9); ink();
     doc.text(`${L('jobCosts')}: ${B(s.jobCosts)}`, m, y);
     doc.text(`${L('grossMargin')}: ${B(r2(s.net - s.jobCosts))}`, m, y + 6);
+    doc.text(`${L('received')}: ${B(s.received.cash)}`, m, y + 12);
+    if (s.received.wht) doc.text(`${L('whtMonth')}: ${B(s.received.wht)}`, m, y + 18);
 
     // Footer
     const ph = doc.internal.pageSize.height;

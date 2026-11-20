@@ -5,6 +5,19 @@
 // ═══════════════════════════════════════════════════════════════
 let quotations = [
     {
+        id: 'DOC-2026-1101', date: '2026-11-12', validUntil: '2026-12-12',
+        customer: 'บริษัท ทีเอ็นอาร์ เอ็นจิเนียริ่ง จำกัด', customerEmail: 'acct@tnr-eng.com',
+        taxId: '0-1055-52007-88-1', docType: 'quotation',
+        items: [
+            { name: 'งานติดตั้งรางเคเบิลและเดินสายไฟ', description: 'อาคารผลิต 2 ความยาว 120 ม.', qty: 1, price: 36000 },
+            { name: 'ตู้ควบคุมย่อย (DB)', description: 'พร้อมเบรกเกอร์ 12 ช่อง', qty: 2, price: 7000 }
+        ],
+        subtotal: 50000, tax: 3500, total: 53500, vat: true,
+        status: 'approved', createdBy: 'somying@baigamgab.co',
+        submittedAt: '2026-11-12T03:00:00.000Z', submittedBy: 'somying@baigamgab.co',
+        approvedAt: '2026-11-12T04:10:00.000Z', approvedBy: 'preecha@baigamgab.co'
+    },
+    {
         id: 'DOC-2026-0913', date: '2026-09-15',
         customer: 'หจก. รุ่งเรืองพาณิชย์', customerEmail: 'rungrueang.trade@gmail.com',
         taxId: '0-2033-45009-12-7', docType: 'bill',
@@ -20,7 +33,8 @@ let quotations = [
         subtotal: 45000, tax: 3150, total: 48150,
         status: 'approved', createdBy: 'somying@baigamgab.co',
         submittedAt: '2026-09-13T02:15:00.000Z', submittedBy: 'somying@baigamgab.co',
-        approvedAt: '2026-09-13T02:42:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-09-13T02:42:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0912A', date: '2026-10-10', amount: 20000, wht: 0, method: 'transfer', ref: 'KBank 1010-552', note: '', by: 'somying@baigamgab.co', at: '2026-10-10T03:20:00.000Z' }]
     },
     {
         id: 'DOC-2026-0911', date: '2026-09-12',
@@ -76,7 +90,8 @@ let quotations = [
         subtotal: 120000, tax: 8400, total: 128400,
         status: 'approved', createdBy: 'somying@baigamgab.co',
         submittedAt: '2026-08-22T02:00:00.000Z', submittedBy: 'somying@baigamgab.co',
-        approvedAt: '2026-08-22T06:15:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-08-22T06:15:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0807A', date: '2026-09-18', amount: 124800, wht: 3600, method: 'transfer', ref: 'SCB 0918-114', note: '', by: 'somying@baigamgab.co', at: '2026-09-18T02:05:00.000Z' }]
     },
     {
         id: 'DOC-2026-0806', date: '2026-08-08',
@@ -109,7 +124,8 @@ let quotations = [
         subtotal: 83000, tax: 5810, total: 88810,
         status: 'approved', createdBy: 'anucha@baigamgab.co',
         submittedAt: '2026-07-05T04:00:00.000Z', submittedBy: 'anucha@baigamgab.co',
-        approvedAt: '2026-07-05T07:30:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-07-05T07:30:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0704A', date: '2026-08-01', amount: 86320, wht: 2490, method: 'cheque', ref: 'BBL 0045821', note: '', by: 'somying@baigamgab.co', at: '2026-08-01T04:30:00.000Z' }]
     },
     {
         id: 'DOC-2026-0603', date: '2026-06-20',
@@ -119,7 +135,8 @@ let quotations = [
         subtotal: 65000, tax: 4550, total: 69550,
         status: 'approved', createdBy: 'somying@baigamgab.co',
         submittedAt: '2026-06-20T02:00:00.000Z', submittedBy: 'somying@baigamgab.co',
-        approvedAt: '2026-06-20T05:00:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-06-20T05:00:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0603A', date: '2026-07-15', amount: 69550, wht: 0, method: 'transfer', ref: 'KTB 0715-208', note: '', by: 'somying@baigamgab.co', at: '2026-07-15T06:10:00.000Z' }]
     },
     {
         id: 'DOC-2026-0502', date: '2026-05-14',
@@ -139,7 +156,8 @@ let quotations = [
         subtotal: 78000, tax: 5460, total: 83460,
         status: 'approved', createdBy: 'anucha@baigamgab.co',
         submittedAt: '2026-04-09T03:00:00.000Z', submittedBy: 'anucha@baigamgab.co',
-        approvedAt: '2026-04-09T06:00:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-04-09T06:00:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0401A', date: '2026-05-06', amount: 81120, wht: 2340, method: 'transfer', ref: 'KBank 0506-031', note: '', by: 'somying@baigamgab.co', at: '2026-05-06T02:45:00.000Z' }]
     },
     {
         id: 'DOC-2026-0312', date: '2026-03-15',
@@ -149,7 +167,8 @@ let quotations = [
         subtotal: 42000, tax: 2940, total: 44940,
         status: 'approved', createdBy: 'somying@baigamgab.co',
         submittedAt: '2026-03-15T02:00:00.000Z', submittedBy: 'somying@baigamgab.co',
-        approvedAt: '2026-03-15T04:30:00.000Z', approvedBy: 'preecha@baigamgab.co'
+        approvedAt: '2026-03-15T04:30:00.000Z', approvedBy: 'preecha@baigamgab.co',
+        payments: [{ id: 'PAY-SEED-0312A', date: '2026-04-10', amount: 44940, wht: 0, method: 'cash', ref: '', note: '', by: 'somying@baigamgab.co', at: '2026-04-10T08:00:00.000Z' }]
     }
 ];
 

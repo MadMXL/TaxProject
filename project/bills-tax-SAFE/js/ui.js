@@ -125,7 +125,7 @@ const LANG = {
     customerType:'Customer Type', individual:'Individual', company:'Company',
     poId:'PO ID', date:'Date', notes:'Notes', customer:'Customer',
     noOrders:'No purchase orders yet.', ordersCount:'order(s)',
-    costTracking:'Cost Tracking', poRevenue:'PO Revenue',
+    costTracking:'Cost Tracking', poRevenue:'Revenue before VAT',
     totalCost:'Total Cost', profit:'Profit',
     costEntries:'Cost Entries', noCosts:'No costs recorded yet',
     typeLbl:'Type', labor:'Labor', transport:'Transport', material:'Material', other:'Other',
@@ -285,7 +285,7 @@ const LANG = {
     customerType:'ประเภทลูกค้า', individual:'บุคคลทั่วไป', company:'บริษัท',
     poId:'รหัส PO', date:'วันที่', notes:'หมายเหตุ', customer:'ลูกค้า',
     noOrders:'ยังไม่มีใบสั่งซื้อ', ordersCount:'ใบสั่งซื้อ',
-    costTracking:'ติดตามต้นทุน', poRevenue:'รายได้ PO',
+    costTracking:'ติดตามต้นทุน', poRevenue:'รายได้ก่อน VAT',
     totalCost:'ต้นทุนรวม', profit:'กำไร',
     costEntries:'รายการค่าใช้จ่าย', noCosts:'ยังไม่มีค่าใช้จ่าย',
     typeLbl:'ประเภท', labor:'แรงงาน', transport:'ขนส่ง', material:'วัสดุ', other:'อื่นๆ',
@@ -608,6 +608,18 @@ function startupNotices() {
     return;   // one island at a time
   }
 
+  // Overdue invoices: Sales, Manager and Owner follow up on money owed.
+  const late = role !== 'technician' ? receivables().filter(x => x.p.overdue) : [];
+  if (late.length && !store(() => sessionStorage.getItem('overdueShown'))) {
+    store(() => sessionStorage.setItem('overdueShown', '1'));
+    showNotification('⏰ ' + Lf('overdueNotice', { n: late.length }), {
+      type: 'warn',
+      detail: Lf('overdueDetail', { amt: fmt(owedSummary(late).total) }),
+      action: { label: L('viewOverdue'), onClick: () => { statusFilter = 'overdue'; billsLimit = PAGE_SIZE; switchView('bills'); } },
+    });
+    return;   // one island at a time
+  }
+
   const alerts = role !== 'sales' ? stockAlerts() : [];
   if (alerts.length && !store(() => sessionStorage.getItem('lowStockShown'))) {
     store(() => sessionStorage.setItem('lowStockShown', '1'));
@@ -682,7 +694,7 @@ function renderDashboard() {
   const th = getLang() === 'th';
   // Revenue counts approved documents only, the same rule as the Monthly Report,
   // so the two pages never disagree. Drafts, pending and rejected aren't income yet.
-  const approvedDocs = quotations.filter(q => q.status === 'approved');
+  const approvedDocs = quotations.filter(isSale);   // quotations are offers, not revenue
   const total = approvedDocs.reduce((s, q) => s + (q.total || 0), 0);
   const vat   = approvedDocs.reduce((s, q) => s + (q.tax || 0), 0);
   const c = {
@@ -708,11 +720,13 @@ function renderDashboard() {
     ${stockBanner()}
 
     <div class="kpi-grid">
-      ${kpi(L('totalRevenue'), baht(total), 'var(--brand)', th ? `จากเอกสารที่อนุมัติ ${c.approved} รายการ` : `from ${c.approved} approved document${c.approved === 1 ? '' : 's'}`)}
+      ${kpi(L('totalRevenue'), baht(total), 'var(--brand)', th ? `จากบิลและใบแจ้งหนี้ที่อนุมัติ ${approvedDocs.length} รายการ` : `from ${approvedDocs.length} approved bills & invoices`)}
       ${kpi(L('pendingCount'), c.pending, 'var(--st-pending)', th ? 'รอตรวจสอบ' : 'awaiting review', c.pending ? 'up' : 'flat')}
       ${kpi(L('approvedCount'), c.approved, 'var(--st-approved)', (th ? 'อัตราอนุมัติ ' : 'approval rate ') + approvalRate + '%')}
       ${kpi(L('vatCollected'), baht(vat), 'var(--accent)', th ? 'ภาษีขาย 7%' : 'output VAT 7%')}
     </div>
+
+    ${receivablesCard()}
 
     <div class="grid-2">
       <div class="card">
@@ -877,8 +891,13 @@ function statusWash(s){ return { draft:'var(--st-draft-wash)', pending:'var(--st
 function billsFiltered(withStatus = true, withText = true) {
   const f = listFilters.bills;
   const s = withText ? searchQuery.trim().toLowerCase() : '';
+  // 'unpaid' / 'overdue' are payment filters (payments.js); the rest are document statuses.
+  const statusOk = d => statusFilter === 'all' ? true
+    : statusFilter === 'unpaid' ? isUnpaid(d)
+    : statusFilter === 'overdue' ? isOverdue(d)
+    : d.status === statusFilter;
   return quotations.filter(d =>
-    (!withStatus || statusFilter === 'all' || d.status === statusFilter) &&
+    (!withStatus || statusOk(d)) &&
     (!f.name || d.customer === f.name) &&
     (!f.docType || d.docType === f.docType) &&
     inDateRange(d.date, f) &&
@@ -915,9 +934,13 @@ function exportFilteredCSV() {
   const list = billsFiltered();
   if (!list.length) { showNotification('⚠️ ' + L('noDocuments')); return; }
   const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['ID', 'Date', 'Type', 'Customer', 'Tax ID', 'Items', 'Subtotal', 'VAT', 'Total', 'Status'];
-  const rows = list.map(q => [q.id, q.date, getDocTypeLabel(q.docType), q.customer, q.taxId,
-    q.items.map(i => `${i.name} (${i.qty} x ${i.price})`).join('; '), q.subtotal, q.tax, q.total, q.status].map(cell).join(','));
+  const head = ['ID', 'Date', 'Type', 'Customer', 'Tax ID', 'Items', 'Subtotal', 'VAT', 'Total', 'Status', 'Due date', 'Paid', 'Balance', 'Payment'];
+  const rows = list.map(q => {
+    const p = payState(q);
+    return [q.id, q.date, getDocTypeLabel(q.docType), q.customer, q.taxId,
+      q.items.map(i => `${i.name} (${i.qty} x ${i.price})`).join('; '), q.subtotal, q.tax, q.total, q.status,
+      p ? p.due : '', p ? p.paid : '', p ? p.balance : '', p ? (p.overdue ? 'overdue' : p.state) : ''].map(cell).join(',');
+  });
   const blob = new Blob(['\ufeff' + [head.join(','), ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -936,6 +959,8 @@ function renderBillsView() {
     pending: facet.filter(q => q.status === 'pending').length,
     approved: facet.filter(q => q.status === 'approved').length,
     rejected: facet.filter(q => q.status === 'rejected').length,
+    unpaid: facet.filter(isUnpaid).length,
+    overdue: facet.filter(isOverdue).length,
   };
 
   const role = sessionStorage.getItem('userRole') || 'sales';
@@ -962,6 +987,7 @@ function renderBillsView() {
         </div>
         <div class="chips">
           ${chip('all', L('allFilter'), c.all)}${chip('draft', L('draft'), c.draft)}${chip('pending', L('pending'), c.pending)}${chip('approved', L('approved'), c.approved)}${chip('rejected', L('rejected'), c.rejected)}
+          ${tech ? '' : `<span class="chips-sep" aria-hidden="true"></span>${chip('unpaid', L('chipUnpaid'), c.unpaid)}${chip('overdue', L('chipOverdue'), c.overdue)}`}
         </div>
       </div>
       ${searchBox('bills', th ? 'ค้นหาด้วยเลขที่ ลูกค้า หรือรายการ…' : 'Search by ID, customer, item…')}
@@ -969,7 +995,7 @@ function renderBillsView() {
         <label class="field"><span class="field-label">${L('docType')}</span>
           <select class="select" onchange="setListFilter('bills','docType',this.value)">
             <option value="">${L('allTypes')}</option>
-            ${['bill', 'invoice', 'tax-invoice'].map(v => `<option value="${v}" ${listFilters.bills.docType === v ? 'selected' : ''}>${esc(getDocTypeLabel(v))}</option>`).join('')}
+            ${['quotation', 'bill', 'invoice', 'tax-invoice'].map(v => `<option value="${v}" ${listFilters.bills.docType === v ? 'selected' : ''}>${esc(getDocTypeLabel(v))}</option>`).join('')}
           </select>
         </label>`)}
     </div>
@@ -1102,7 +1128,7 @@ function renderBillsList(list) {
             <td><div class="cell-strong">${esc(q.customer)}</div>${q.customerEmail ? `<div class="cell-sub">${esc(q.customerEmail)}</div>` : ''}</td>
             <td class="muted">${q.items.length} item${q.items.length === 1 ? '' : 's'}</td>
             <td class="num"><div class="cell-strong tnum">${baht(q.total)}</div><div class="cell-sub tnum">VAT ฿${fmt(q.tax)}</div></td>
-            <td>${getStatusPill(q.status)}${q.status === 'rejected' && q.rejectionReason ? `<div style="margin-top:3px;font-size:var(--t-micro);color:var(--st-rejected);">“${esc(q.rejectionReason)}”</div>` : ''}</td>
+            <td>${getStatusPill(q.status)}${q.status === 'rejected' && q.rejectionReason ? `<div style="margin-top:3px;font-size:var(--t-micro);color:var(--st-rejected);">“${esc(q.rejectionReason)}”</div>` : ''}${payCell(q)}${quoteCell(q)}</td>
             <td style="white-space:nowrap;">${getActionButtons(q)}</td>
           </tr>`).join('')}</tbody>
       </table>
@@ -1132,7 +1158,7 @@ function renderBillsGrouped(list, limit = Infinity) {
           <div class="row-main">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="font-weight:600;font-size:var(--t-meta);">${esc(q.id)}</span>
-              ${getDocTypeBadge(q.docType)}${getStatusPill(q.status)}
+              ${getDocTypeBadge(q.docType)}${getStatusPill(q.status)}${payPill(q)}${quotePill(q)}
             </div>
             <div class="s">${gk === 'date' ? esc(q.customer) : esc(q.date)} · ${esc(q.items.map(i => i.name).join(', '))}</div>
           </div>
@@ -1211,15 +1237,24 @@ function renderNewQuotation() {
         <div class="field">
           <span class="field-label">${L('documentType')}</span>
           <div class="doctype" id="docTypeGroup">
+            ${dt('quotation','Quotation','ใบเสนอราคา')}
             ${dt('bill','Bill','ใบเสร็จ')}
             ${dt('invoice','Invoice','ใบแจ้งหนี้')}
             ${dt('tax-invoice','Tax Invoice','ใบกำกับภาษี')}
           </div>
         </div>
 
-        <div class="field" style="max-width:240px;">
-          <span class="field-label">${L('date')}</span>
-          <input type="date" id="docDate" class="input" value="${localDateISO()}" required>
+        <div class="grid-2" style="max-width:500px;">
+          <div class="field">
+            <span class="field-label">${L('date')}</span>
+            <input type="date" id="docDate" class="input" value="${localDateISO()}" required oninput="syncDueDate()">
+          </div>
+          <!-- Invoices: due date. Quotations: valid until. A bill is a receipt, already paid. -->
+          <div class="field hidden" id="dueDateField">
+            <span class="field-label" id="dueLabel">${L('dueDate')}</span>
+            <input type="date" id="dueDate" class="input" value="${addDaysISO(localDateISO(), PAYMENT_TERM_DAYS)}" oninput="this.dataset.manual='1'">
+            <span class="field-hint" id="dueHintText">${esc(Lf('dueHint', { n: PAYMENT_TERM_DAYS }))}</span>
+          </div>
         </div>
 
         <div class="fieldset">
@@ -1296,7 +1331,7 @@ function itemRowMarkup(n) {
 }
 
 function selectDocType(value) {
-  ['bill', 'invoice', 'tax-invoice'].forEach(v => {
+  ['quotation', 'bill', 'invoice', 'tax-invoice'].forEach(v => {
     const el = document.getElementById('dtc-' + v);
     if (el) { el.classList.toggle('is-on', v === value); const r = el.querySelector('input'); if (r) r.checked = (v === value); }
   });
@@ -1306,6 +1341,21 @@ function updateFormFields() {
   const type = document.querySelector('input[name="docType"]:checked')?.value || 'bill';
   const taxField = document.getElementById('taxIdField');
   if (taxField) taxField.classList.toggle('hidden', type !== 'tax-invoice');
+  const dueField = document.getElementById('dueDateField');
+  if (dueField) dueField.classList.toggle('hidden', type === 'bill');
+  const quote = type === 'quotation';
+  const lbl = document.getElementById('dueLabel'), hint = document.getElementById('dueHintText');
+  if (lbl) lbl.textContent = L(quote ? 'validUntil' : 'dueDate');
+  if (hint) hint.textContent = Lf(quote ? 'validHint' : 'dueHint', { n: dueDays(type) });
+  syncDueDate();
+}
+function dueDays(type) { return type === 'quotation' ? QUOTE_VALID_DAYS : PAYMENT_TERM_DAYS; }
+// The due / valid-until date follows the document date until the user sets it by hand.
+function syncDueDate() {
+  const due = document.getElementById('dueDate');
+  const date = document.getElementById('docDate')?.value;
+  const type = document.querySelector('input[name="docType"]:checked')?.value || 'bill';
+  if (due && date && !due.dataset.manual) due.value = addDaysISO(date, dueDays(type));
 }
 // legacy alias
 function dtc() { return ''; }
@@ -1464,6 +1514,13 @@ function renderAuditPanel() {
     if (q.submittedAt) ev.push({ t: q.submittedAt, who: q.submittedBy, act: th ? 'ส่งตรวจสอบ' : 'submitted', doc: q.id });
     if (q.approvedAt)  ev.push({ t: q.approvedAt,  who: q.approvedBy,  act: th ? 'อนุมัติ'    : 'approved',  doc: q.id });
     if (q.rejectedAt)  ev.push({ t: q.rejectedAt,  who: q.rejectedBy,  act: th ? 'ปฏิเสธ'     : 'rejected',  doc: q.id, note: q.rejectionReason });
+    if (q.acceptedAt) ev.push({ t: q.acceptedAt, who: q.acceptedBy, act: L('evQAccepted'), doc: `${q.id} → ${q.jobId || ''}` });
+    if (q.declinedAt) ev.push({ t: q.declinedAt, who: q.declinedBy, act: L('evQDeclined'), doc: q.id, note: q.declineReason });
+    allPayments(q).forEach(p => {
+      const doc = `${q.id} (฿${fmt(p.amount)}${Number(p.wht) > 0 ? ` + ${L('whtShort')} ฿${fmt(p.wht)}` : ''})`;
+      if (p.at)       ev.push({ t: p.at,       who: p.by,       act: L('evPaid'),   doc });
+      if (p.voidedAt) ev.push({ t: p.voidedAt, who: p.voidedBy, act: L('evVoided'), doc, note: p.voidReason });
+    });
   });
   purchaseRequests.forEach(p => {
     const doc = `${p.id} (${p.itemName}, ฿${fmt(p.total)})`;
@@ -1707,7 +1764,7 @@ function poResultsHTML() {
     if (canEdit && po.status !== 'completed') actions.push(`<button class="act act-danger" onclick="deletePO('${po.id}')">${L('delete')}</button>`);
     return `
     <tr>
-      <td><div class="cell-strong" style="color:var(--accent);">${esc(po.id)}</div></td>
+      <td><div class="cell-strong" style="color:var(--accent);">${esc(po.id)}</div>${po.fromQuotation ? `<button class="act act-primary" style="padding-left:0;" onclick="viewQuotation('${esc(po.fromQuotation)}')">${esc(Lf('qFrom', { id: po.fromQuotation }))}</button>` : ''}</td>
       <td class="muted">${esc(po.date)}</td>
       <td class="cell-strong">${esc(po.customer)}</td>
       <td class="muted">${po.items.length} item${po.items.length === 1 ? '' : 's'}</td>
@@ -1916,7 +1973,7 @@ function getStatusPill(status) {
 function getStatusBadge(s) { return getStatusPill(s); }
 
 function getDocTypeBadge(docType) {
-  const label = { 'bill':'Bill', 'invoice':'Invoice', 'tax-invoice':'Tax Invoice' }[docType] || 'Bill';
+  const label = { 'quotation':'Quotation', 'bill':'Bill', 'invoice':'Invoice', 'tax-invoice':'Tax Invoice' }[docType] || 'Bill';
   return `<span class="pill pill-plain pill-neutral">${label}</span>`;
 }
 function getRoleLabel(role) {
@@ -1959,6 +2016,8 @@ function getActionButtons(q) {
     }
     if (q.status === 'approved') b.push(mk(L('del'), `deleteQuotation('${q.id}')`, 'act-danger'));
   }
+  b.push(quoteActions(q));
+  if (isUnpaid(q) && canRecordPayment()) b.push(mk(L('recordPay'), `openPaymentForm('${q.id}')`, 'act-pos act-strong'));
   return b.join('');
 }
 
@@ -2027,8 +2086,9 @@ function viewCustomer(id) {
   closeCustomerPanel();
   const key = (c.name || '').trim().toLowerCase();
   const docs = quotations.filter(q => (q.customer || '').trim().toLowerCase() === key);
-  const billed = docs.reduce((s, q) => s + (q.total || 0), 0);
-  const line = (label, value, cls = '') => value
+  const billed = docs.filter(q => !isQuote(q)).reduce((s, q) => s + (q.total || 0), 0);
+  const owed = owedSummary(receivables(docs));
+  const line =(label, value, cls = '') => value
     ? `<div class="kv"><span class="field-label">${label}</span><span class="${cls}">${esc(value)}</span></div>` : '';
 
   const html = `
@@ -2043,6 +2103,10 @@ function viewCustomer(id) {
           <div class="stat" style="--stat-accent:var(--accent);"><div class="stat-label">${L('docsCount')}</div><div class="stat-value">${docs.length}</div></div>
           <div class="stat" style="--stat-accent:var(--pos);"><div class="stat-label">${L('totalBilled')}</div><div class="stat-value tnum">${baht(billed)}</div></div>
         </div>
+        ${owed.count ? `<div class="pay-owed${owed.lateCount ? ' is-late' : ''}">
+          <b class="tnum">${esc(Lf('custOwes', { amt: '฿' + fmt(owed.total) }))}</b>
+          ${owed.lateCount ? `<span>${esc(Lf('custLate', { n: owed.lateCount }))} · ฿${fmt(owed.lateTotal)}</span>` : ''}
+        </div>` : ''}
         <div class="stack" style="gap:10px;">
           ${line(L('email'), c.email)}
           ${line(L('phone'), c.phone)}
@@ -2054,7 +2118,7 @@ function viewCustomer(id) {
           ${docs.length ? `<div class="card">${docs.slice(0, 6).map(q => `
             <button class="row row-btn" onclick="closeCustomerPanel();viewQuotation('${q.id}')">
               <div class="row-main"><div class="t">${esc(q.id)}</div><div class="s">${esc(q.date)} · ${(q.items || []).length} ${L('itemsCol')}</div></div>
-              <div class="row-end"><div class="tnum" style="font-weight:600;">${baht(q.total)}</div>${getStatusPill(q.status)}</div>
+              <div class="row-end"><div class="tnum" style="font-weight:600;">${baht(q.total)}</div>${payPill(q) || quotePill(q) || getStatusPill(q.status)}</div>
             </button>`).join('')}</div>`
           : `<p class="muted" style="font-size:var(--t-meta);">${L('noDocsYet')}</p>`}
         </div>

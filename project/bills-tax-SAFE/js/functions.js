@@ -176,6 +176,7 @@ function captureDocForm() {
     return {
         docType: form.querySelector('input[name="docType"]:checked')?.value || 'bill',
         date: val('docDate'),
+        dueDate: val('dueDate'),
         customer: val('customerName'),
         customerEmail: val('customerEmail'),
         customerAddress: val('customerAddress'),
@@ -196,6 +197,16 @@ function fillDocForm(d) {
     selectDocType(d.docType || 'bill');
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
     if (d.date) set('docDate', d.date);
+    // A saved due date that isn't the standard term was chosen by hand: stop it following the date.
+    // Quotations keep it in validUntil, invoices in dueDate; a form snapshot has it in dueDate.
+    const due = document.getElementById('dueDate');
+    if (due) {
+        const saved = d.docType === 'quotation' ? (d.validUntil || d.dueDate) : d.dueDate;
+        const std = d.date ? addDaysISO(d.date, dueDays(d.docType)) : '';
+        due.value = saved || std || due.value;
+        if (saved && std && saved !== std) due.dataset.manual = '1';
+        else delete due.dataset.manual;
+    }
     set('customerName', d.customer);
     set('customerEmail', d.customerEmail);
     set('customerAddress', d.customerAddress);
@@ -256,8 +267,20 @@ function submitQuotation(event) {
     const tax = d.vat ? round2(subtotal * 0.07) : 0;
     const total = round2(subtotal + tax);
 
+    // One date field: "Valid until" on a quotation, "Due date" on an invoice / tax invoice,
+    // nothing on a bill (a receipt, already paid).
+    const date = d.date || localDateISO();
+    const until = d.docType === 'bill' ? '' : (d.dueDate || addDaysISO(date, dueDays(d.docType)));
+    if (until && until < date) {
+        showNotification('⚠️ ' + L(d.docType === 'quotation' ? 'validBeforeDate' : 'dueBeforeDate'));
+        document.getElementById('dueDate')?.focus();
+        return;
+    }
+    const dueDate = d.docType === 'quotation' ? '' : until;
+    const validUntil = d.docType === 'quotation' ? until : '';
+
     const fields = {
-        date: d.date || localDateISO(),
+        date, dueDate, validUntil,
         customer: d.customer.trim(),
         customerEmail: d.customerEmail.trim(),
         customerAddress: d.customerAddress.trim(),
@@ -505,7 +528,7 @@ function viewQuotation(id) {
     const q = quotations.find(x => x.id === id);
     if (!q) { showNotification('❌ Document not found'); return; }
 
-    const typeLabel = q.docType === 'tax-invoice' ? 'Tax Invoice' : q.docType === 'invoice' ? 'Invoice' : 'Bill';
+    const typeLabel = getDocTypeLabel(q.docType || 'bill');
 
     let extraInfo = '';
     if (q.status === 'rejected' && q.rejectionReason) {
@@ -560,6 +583,8 @@ function viewQuotation(id) {
                 <div style="font-size:var(--t-lede);font-weight:700;color:var(--accent);">${L('total')}: <span class="tnum">฿${fmt(q.total)}</span></div>
               </div>
               ${extraInfo}
+              ${paymentSection(q)}
+              ${quoteSection(q)}
             </div>
             <div style="text-align:center;">
               <div id="qrcode" style="background:#fff;padding:8px;border-radius:10px;display:inline-block;border:1px solid var(--line-2);"></div>
@@ -991,7 +1016,7 @@ function generatePDF(quotationId) {
         F('normal');
 
         const HEAD = th
-            ? ({ 'bill': 'ใบเสร็จรับเงิน', 'invoice': 'ใบแจ้งหนี้', 'tax-invoice': 'ใบกำกับภาษี' }[q.docType] || 'เอกสาร')
+            ? ({ 'quotation': 'ใบเสนอราคา', 'bill': 'ใบเสร็จรับเงิน', 'invoice': 'ใบแจ้งหนี้', 'tax-invoice': 'ใบกำกับภาษี' }[q.docType] || 'เอกสาร')
             : getDocTypeLabel(q.docType);
         const STAT = th
             ? ({ draft: 'ฉบับร่าง', pending: 'รอการอนุมัติ', approved: 'อนุมัติแล้ว', rejected: 'ไม่อนุมัติ' }[q.status] || q.status)
@@ -1016,8 +1041,10 @@ function generatePDF(quotationId) {
             doc.text(String(value == null ? '' : value), m + 34, y);
             y += 5.4;
         };
-        metaRow(th ? 'เลขที่เอกสาร' : (q.docType === 'tax-invoice' ? 'Tax invoice no.' : q.docType === 'invoice' ? 'Invoice no.' : 'Document no.'), q.id);
+        metaRow(th ? 'เลขที่เอกสาร' : (q.docType === 'tax-invoice' ? 'Tax invoice no.' : q.docType === 'invoice' ? 'Invoice no.' : q.docType === 'quotation' ? 'Quotation no.' : 'Document no.'), q.id);
         metaRow(th ? 'วันที่' : 'Date', q.date);
+        if (q.docType === 'invoice' || q.docType === 'tax-invoice') metaRow(th ? 'ครบกำหนดชำระ' : 'Due date', dueDateOf(q));
+        if (q.docType === 'quotation') metaRow(th ? 'ยืนราคาถึง' : 'Valid until', validUntilOf(q));
         metaRow(th ? 'สถานะ' : 'Status', STAT, STAT_COLOR);
 
         // statement line
@@ -1127,9 +1154,13 @@ function generatePDF(quotationId) {
         const fy = ph - 33;
         hair(fy - 7);
         doc.setFontSize(7); F('bold'); setMute();
-        doc.text(th ? 'เงื่อนไขการชำระเงิน' : 'PAYMENT TERMS', m + 26, fy);
+        doc.text(q.docType === 'quotation' ? (th ? 'เงื่อนไข' : 'TERMS') : (th ? 'เงื่อนไขการชำระเงิน' : 'PAYMENT TERMS'), m + 26, fy);
         F('normal');
-        doc.text(th ? 'ชำระภายใน 30 วันนับจากวันที่ในเอกสาร' : 'Payment due within 30 days of the document date.', m + 26, fy + 4.6);
+        doc.text(q.docType === 'quotation'
+            ? (th ? `ราคานี้ยืนถึงวันที่ ${validUntilOf(q)} หากตกลง กรุณาแจ้งกลับเพื่อเริ่มงาน` : `Prices are valid until ${validUntilOf(q)}. To go ahead, reply to accept and we will schedule the work.`)
+            : q.docType === 'bill'
+            ? (th ? 'ได้รับชำระเงินเรียบร้อยแล้ว' : 'Payment received with thanks.')
+            : (th ? `กรุณาชำระภายในวันที่ ${dueDateOf(q)}` : `Please pay by ${dueDateOf(q)}.`), m + 26, fy + 4.6);
         doc.text(companyInfo.name + (companyInfo.website ? '  ·  ' + companyInfo.website : ''), m + 26, fy + 9.2);
         doc.setFontSize(7); setMute(); F('normal');
         doc.text(th ? 'หน้า 1/1' : 'Page 1 of 1', pw - m, ph - 12, { align: 'right' });
@@ -1169,6 +1200,7 @@ function generatePDF(quotationId) {
 
 function getDocTypeLabel(docType) {
     const labels = {
+        'quotation': 'Quotation',
         'bill': 'Bill',
         'invoice': 'Invoice',
         'tax-invoice': 'Tax Invoice'
@@ -1282,11 +1314,14 @@ async function convertPOToInvoice(id) {
     const seq = String(quotations.length + 1).padStart(3, '0');
     const invoiceId = `QT${date}${seq}`;
 
+    // A job opened from a quotation carries the customer's details through to the invoice.
+    const src = po.fromQuotation ? quotations.find(q => q.id === po.fromQuotation) : null;
     const invoice = {
         id: invoiceId,
         date: po.date,
         customer: po.customer,
-        taxId: '',
+        ...(src ? { customerEmail: src.customerEmail || '', customerAddress: src.customerAddress || '', vat: src.vat, fromQuotation: src.id } : {}),
+        taxId: src ? (src.taxId || '') : '',
         docType: 'invoice',
         items: po.items,
         subtotal: po.subtotal,
@@ -1419,7 +1454,8 @@ function openPOCostPanel(poId) {
 
     const costs = poCosts.filter(c => c.poId === poId);
     const totalCost = costs.reduce((s, c) => s + c.amount, 0);
-    const profit = po.total - totalCost;
+    // Profit is on the amount before VAT: the 7% belongs to the Revenue Department, not the company.
+    const profit = Math.round(((Number(po.subtotal) || 0) - totalCost) * 100) / 100;
     const costPill = { labor:'pill-open', transport:'pill-pending', material:'pill-brand', other:'pill-neutral' };
 
     const costRows = costs.length === 0
@@ -1445,7 +1481,7 @@ function openPOCostPanel(poId) {
         <div class="sheet-body">
           <div class="grid-3">
             <div class="stat" style="--stat-accent:var(--accent);padding:12px;text-align:center;">
-              <div class="stat-label">${L('poRevenue')}</div><div class="stat-value tnum" style="font-size:var(--t-lede);">฿${fmt(po.total)}</div>
+              <div class="stat-label">${L('poRevenue')}</div><div class="stat-value tnum" style="font-size:var(--t-lede);">฿${fmt(po.subtotal)}</div>
             </div>
             <div class="stat" style="--stat-accent:var(--neg);padding:12px;text-align:center;">
               <div class="stat-label">${L('totalCost')}</div><div class="stat-value tnum" style="font-size:var(--t-lede);">฿${fmt(totalCost)}</div>
