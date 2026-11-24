@@ -191,7 +191,8 @@ npx serve
 
 ### **Test 5: Quotation → job → invoice**
 - [ ] New Document → **Quotation**: the date field reads "Valid until" (+30 days); switching to Invoice changes it to "Due date"
-- [ ] Submit and approve the quotation → it shows "Waiting for customer" with **Accept** / **Decline**; Overview revenue and the Monthly Report do **not** include it
+- [ ] Submit and approve the quotation → it shows "Waiting for customer" with **Email to customer** / **Accept** / **Decline**; Overview revenue and the Monthly Report do **not** include it
+- [ ] **Email to customer** → the quotation PDF downloads and a mail draft opens to the customer's email with the subject "Quotation DOC-… from …" and a reply-to-accept/decline note; the document view shows "Emailed <date>"; with no customer email, a warning asks you to type the address
 - [ ] **Accept** → a job opens on Jobs & Costs with the same items and "From quotation DOC-…"; the quotation shows "Accepted · Job PO…"
 - [ ] Add a cost to the job → the Costs panel shows revenue **before VAT** − cost = profit
 - [ ] Start the job → Convert to invoice → the invoice keeps the customer's tax ID and email

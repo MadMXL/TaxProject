@@ -2,7 +2,8 @@
 // Baigamgab · SmartLedger — Quotations (ใบเสนอราคา)
 //
 // A quotation is approved like any document (draft → pending → approved),
-// then it goes to the customer:
+// then it is emailed to the customer, who answers only by replying to the email
+// (staff record the reply with Accept / Decline):
 //
 //   approved ── customer accepts ──▶ a Job is opened with the same items
 //            │                       (Jobs & Costs → Convert to invoice → payment)
@@ -23,14 +24,20 @@ Object.assign(LANG.en, {
   qWaiting: 'Waiting for customer', qAccepted: 'Accepted', qDeclined: 'Declined', qExpired: 'Expired',
   qValidTo: 'Valid until {d}', qToJob: 'Job {id}',
   qAcceptBtn: 'Accept', qDeclineBtn: 'Decline',
-  qAcceptTitle: 'Customer accepted this quotation?',
+  qAcceptTitle: 'Customer accepted this quotation by email?',
   qAcceptMsg: 'A job is opened with the same items, so you can record its costs and turn it into an invoice when the work is done.',
   qAcceptExpired: 'This quotation is past its valid-until date. Accept it anyway?',
   qAcceptConfirm: 'Accept and open job',
-  qDeclineTitle: 'Customer declined this quotation?', qDeclineReason: 'Reason (e.g. price too high, chose another contractor)',
+  qDeclineTitle: 'Customer declined this quotation by email?', qDeclineReason: 'Reason (e.g. price too high, chose another contractor)',
   qJobOpened: 'Job {job} opened', qOpenJob: 'Open Jobs', qDeclinedMsg: 'Quotation marked as declined',
   qSection: 'Customer answer', qFrom: 'From quotation {id}',
   evQAccepted: 'customer accepted', evQDeclined: 'customer declined',
+  qEmailBtn: 'Email to customer', qEmailed: 'Emailed {d}',
+  qEmailHow: 'The customer answers by replying to the email. When they reply, press Accept or Decline.',
+  qEmailNoAddr: 'No customer email on this quotation — type the address in the email.',
+  qEmailAttach: 'PDF downloaded — attach it to the email',
+  qEmailSubject: 'Quotation {id} from {co}',
+  qEmailBody: 'Dear {cust},\r\n\r\nPlease find attached our quotation {id}.\r\nTotal: ฿{total} (incl. VAT)\r\nValid until: {until}\r\n\r\nTo go ahead, please reply to this email with "Accept". If you do not wish to proceed, reply with "Decline" and, if possible, the reason.\r\n\r\nBest regards,\r\n{co}{phone}',
 });
 Object.assign(LANG.th, {
   docQuotation: 'ใบเสนอราคา', validUntil: 'ยืนราคาถึง',
@@ -39,14 +46,20 @@ Object.assign(LANG.th, {
   qWaiting: 'รอลูกค้าตอบรับ', qAccepted: 'ลูกค้าตอบรับ', qDeclined: 'ลูกค้าปฏิเสธ', qExpired: 'หมดอายุ',
   qValidTo: 'ยืนราคาถึง {d}', qToJob: 'งาน {id}',
   qAcceptBtn: 'ตอบรับ', qDeclineBtn: 'ปฏิเสธ',
-  qAcceptTitle: 'ลูกค้าตอบรับใบเสนอราคานี้?',
+  qAcceptTitle: 'ลูกค้าตอบรับใบเสนอราคานี้ทางอีเมลแล้ว?',
   qAcceptMsg: 'ระบบจะเปิดงานใหม่ด้วยรายการเดียวกัน เพื่อบันทึกต้นทุน แล้วแปลงเป็นใบแจ้งหนี้เมื่องานเสร็จ',
   qAcceptExpired: 'ใบเสนอราคานี้เลยวันยืนราคาแล้ว ต้องการตอบรับต่อหรือไม่?',
   qAcceptConfirm: 'ตอบรับและเปิดงาน',
-  qDeclineTitle: 'ลูกค้าปฏิเสธใบเสนอราคานี้?', qDeclineReason: 'เหตุผล (เช่น ราคาสูงไป เลือกผู้รับเหมารายอื่น)',
+  qDeclineTitle: 'ลูกค้าปฏิเสธใบเสนอราคานี้ทางอีเมลแล้ว?', qDeclineReason: 'เหตุผล (เช่น ราคาสูงไป เลือกผู้รับเหมารายอื่น)',
   qJobOpened: 'เปิดงาน {job} แล้ว', qOpenJob: 'ไปที่งาน', qDeclinedMsg: 'บันทึกว่าลูกค้าปฏิเสธแล้ว',
   qSection: 'การตอบรับของลูกค้า', qFrom: 'จากใบเสนอราคา {id}',
   evQAccepted: 'ลูกค้าตอบรับ', evQDeclined: 'ลูกค้าปฏิเสธ',
+  qEmailBtn: 'ส่งอีเมลถึงลูกค้า', qEmailed: 'ส่งอีเมลแล้ว {d}',
+  qEmailHow: 'ลูกค้าตอบรับหรือปฏิเสธโดยตอบกลับอีเมล เมื่อได้รับคำตอบแล้ว ให้กด ตอบรับ หรือ ปฏิเสธ',
+  qEmailNoAddr: 'ใบเสนอราคานี้ไม่มีอีเมลลูกค้า กรุณาพิมพ์อีเมลเองในหน้าส่งอีเมล',
+  qEmailAttach: 'ดาวน์โหลด PDF แล้ว กรุณาแนบไฟล์ในอีเมล',
+  qEmailSubject: 'ใบเสนอราคา {id} จาก {co}',
+  qEmailBody: 'เรียน {cust}\r\n\r\nขอส่งใบเสนอราคาเลขที่ {id} ตามไฟล์แนบ\r\nยอดรวม: ฿{total} (รวม VAT)\r\nยืนราคาถึง: {until}\r\n\r\nหากตกลง กรุณาตอบกลับอีเมลนี้ว่า "ตอบรับ" หากไม่ประสงค์ดำเนินการ กรุณาตอบกลับว่า "ปฏิเสธ" พร้อมเหตุผล (ถ้ามี)\r\n\r\nขอแสดงความนับถือ\r\n{co}{phone}',
 });
 
 // ── Rules ────────────────────────────────────────────────────
@@ -83,7 +96,8 @@ function quoteCell(q) {
 function quoteActions(q) {
   const st = quoteState(q);
   if (!(st === 'waiting' || st === 'expired') || !canAnswerQuote()) return '';
-  return `<button class="act act-pos act-strong" onclick="acceptQuote('${q.id}')">${L('qAcceptBtn')}</button>`
+  return `<button class="act act-primary" onclick="emailQuote('${q.id}')">${L('qEmailBtn')}</button>`
+       + `<button class="act act-pos act-strong" onclick="acceptQuote('${q.id}')">${L('qAcceptBtn')}</button>`
        + `<button class="act act-danger" onclick="declineQuote('${q.id}')">${L('qDeclineBtn')}</button>`;
 }
 
@@ -98,18 +112,47 @@ function quoteSection(q) {
     : st === 'declined'
     ? `<div class="cell-sub">${who(q.declinedBy)} · ${esc((q.declinedAt || '').slice(0, 10))}${q.declineReason ? ` — “${esc(q.declineReason)}”` : ''}</div>`
     : '';
-  const buttons = (st === 'waiting' || st === 'expired') && canAnswerQuote()
-    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+  const open = st === 'waiting' || st === 'expired';
+  const emailed = q.emailedAt
+    ? `<div class="cell-sub">${esc(Lf('qEmailed', { d: q.emailedAt.slice(0, 10) }))} · ${who(q.emailedBy)}</div>` : '';
+  const buttons = open && canAnswerQuote()
+    ? `<div class="cell-sub">${L('qEmailHow')}</div>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+         <button class="btn btn-secondary btn-sm" onclick="emailQuote('${q.id}')">${icon('mail', '')}${L('qEmailBtn')}</button>
          <button class="btn btn-primary btn-sm" onclick="acceptQuote('${q.id}')">${icon('check', '')}${L('qAcceptConfirm')}</button>
          <button class="btn btn-secondary btn-sm" onclick="declineQuote('${q.id}')">${L('qDeclineBtn')}</button></div>` : '';
   return `<div class="pay-box">
     <div class="spread"><span class="card-title">${L('qSection')}</span>${quotePill(q)}</div>
     <div><div class="field-label">${L('validUntil')}</div><div class="tnum">${esc(validUntilOf(q))}</div></div>
-    ${detail}${buttons}
+    ${emailed}${detail}${buttons}
   </div>`;
 }
 
 // ── Actions ──────────────────────────────────────────────────
+
+// The customer answers only by email: download the PDF (to attach), open the
+// user's mail program addressed to the customer, and note when it was sent.
+// Staff then record the reply with Accept / Decline.
+function emailQuote(id) {
+  const q = quotations.find(x => x.id === id);
+  const st = quoteState(q);
+  if (!(st === 'waiting' || st === 'expired') || !canAnswerQuote()) return;
+
+  generatePDF(q.id);
+  const vars = {
+    id: q.id, co: companyInfo.name || '', cust: q.customer || '', total: fmt(q.total), until: validUntilOf(q),
+    phone: companyInfo.phone ? (getLang() === 'th' ? '\r\nโทร ' : '\r\nTel ') + companyInfo.phone : '',
+  };
+  const to = (q.customerEmail || '').trim();
+  const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(Lf('qEmailSubject', vars))}&body=${encodeURIComponent(Lf('qEmailBody', vars))}`;
+
+  Object.assign(q, { emailedAt: new Date().toISOString(), emailedBy: sessionStorage.getItem('userEmail') || '' });
+  saveToLocalStorage();
+  syncToFirebase();
+  refreshAfterQuote(id);
+  showNotification(L('qEmailAttach'), to ? {} : { type: 'warn', detail: L('qEmailNoAddr') });
+  setTimeout(() => { window.location.href = href; }, 400);   // after the PDF download has started
+}
 async function acceptQuote(id) {
   const q = quotations.find(x => x.id === id);
   const st = quoteState(q);
