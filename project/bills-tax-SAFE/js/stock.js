@@ -447,10 +447,9 @@ function saveStockItem(id) {
     Object.assign(s, { name, unit, category: g('siCat'), minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by });
   } else {
     const qty = Math.max(roundQty(parseFloat(g('siQty')) || 0), 0);
-    // Deleted items keep their picture (for Restore), so their numbers are skipped too.
-    const used = stockItems.map(s => s.id).concat(typeof stockImages === 'object' ? Object.keys(stockImages) : []);
-    const next = used.reduce((m, id) => Math.max(m, parseInt(String(id).replace(/\D/g, ''), 10) || 0), 0) + 1;
-    const item = { id: 'STK-' + String(next).padStart(3, '0'), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by };
+    // A new id is never reused: "highest + 1" would hand a deleted item's number (and its
+    // kept picture) to the next new item, and then block that item's Restore.
+    const item = { id: newStockId(), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by };
     stockItems.push(item);
     savedId = item.id;
     if (qty > 0) stockMoves.push({ id: 'MOV-' + now.getTime(), itemId: item.id, itemName: name, type: 'count', qty, after: qty, jobId: '', note: getLang() === 'th' ? 'ยอดยกมา' : 'Opening balance', date: localDateISO(now), at: now.toISOString(), by });
@@ -460,6 +459,15 @@ function saveStockItem(id) {
   renderApp();
   showNotification('✅ ' + L(id ? 'stockItemUpdated' : 'stockItemAdded'), { detail: name });
   commitItemPicture(savedId);   // a failed picture shows its own message; the item itself is already saved
+}
+
+// STK- + time in base 36, like PAY- ids; a counter guards two items saved in the same millisecond.
+let lastStockStamp = 0;
+function newStockId() {
+  lastStockStamp = Math.max(Date.now(), lastStockStamp + 1);
+  let id = 'STK-' + lastStockStamp.toString(36).toUpperCase();
+  while (stockItems.some(s => s.id === id)) id = 'STK-' + (++lastStockStamp).toString(36).toUpperCase();
+  return id;
 }
 
 function deleteStockItem(id) {

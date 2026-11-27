@@ -165,7 +165,7 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 
 | Field | Type | Req | Example | Description / constraints |
 |---|---|---|---|---|
-| `id` | string | Y | `STK-005` | Primary key. `STK-` + 3-digit sequence after the highest in use. |
+| `id` | string | Y | `STK-MI3K2Q8Z` | Primary key. New items: `STK-` + time stamp in base 36, so an id is never reused (a deleted item keeps its id for Restore and its picture in `stockImages`). The sample items use `STK-001` … `STK-010`. |
 | `name` | string | Y | `ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)` | Item name. Copied into each `stockMoves.itemName`. |
 | `category` | enum | Y | `steel` | `electrical` \| `steel` \| `construction` \| `maintenance` \| `other`. |
 | `unit` | string | Y | `กล่อง` | Unit of count. |

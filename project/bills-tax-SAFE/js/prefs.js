@@ -63,8 +63,8 @@ const IMG_MAX_CHARS = 60000;                // same limit as database.rules.json
 // Anything read back from storage is checked before it reaches an <img>: the format,
 // the length, and the size written in the JPEG header. Anyone signed in can write their
 // own photo directly, so a tiny file that claims to be 60000 × 60000 px could otherwise
-// freeze the browser of whoever views it.
-const IMG_MAX_SIDE = 512;
+// freeze the browser of whoever views it. The app only ever stores 256 × 256.
+const IMG_MAX_SIDE = IMG_SIDE;
 const pictureChecked = new Map();
 function isPicture(v) {
   if (typeof v !== 'string' || v.length >= IMG_MAX_CHARS || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v)) return false;
