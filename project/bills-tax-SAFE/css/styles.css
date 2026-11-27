@@ -832,7 +832,8 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 
 .chart-svg { width: 100%; height: auto; display: block; }
 .chart-svg text { font-family: var(--font); }
-.chart-svg text[font-size="10"] { font-size: calc(10px * (.4 + .6 * var(--text-scale, 1))); }
+.chart-svg text[font-size="10"], .donut-svg text[font-size="10"] { font-size: calc(10px * (.4 + .6 * var(--text-scale, 1))); }
+.donut-svg text[font-size="22"] { font-size: calc(22px * (.4 + .6 * var(--text-scale, 1))); }
 
 .donut-wrap { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; }
 .donut-svg { width: 148px; height: 148px; flex-shrink: 0; }

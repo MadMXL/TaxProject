@@ -447,7 +447,9 @@ function saveStockItem(id) {
     Object.assign(s, { name, unit, category: g('siCat'), minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by });
   } else {
     const qty = Math.max(roundQty(parseFloat(g('siQty')) || 0), 0);
-    const next = stockItems.reduce((m, s) => Math.max(m, parseInt(String(s.id).replace(/\D/g, ''), 10) || 0), 0) + 1;
+    // Deleted items keep their picture (for Restore), so their numbers are skipped too.
+    const used = stockItems.map(s => s.id).concat(typeof stockImages === 'object' ? Object.keys(stockImages) : []);
+    const next = used.reduce((m, id) => Math.max(m, parseInt(String(id).replace(/\D/g, ''), 10) || 0), 0) + 1;
     const item = { id: 'STK-' + String(next).padStart(3, '0'), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by };
     stockItems.push(item);
     savedId = item.id;
