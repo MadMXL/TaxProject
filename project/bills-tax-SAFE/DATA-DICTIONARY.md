@@ -23,7 +23,7 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `materialPrices` | array | Price per unit per supplier, for comparison | Yes |
 | `customers` | array | Customer master data | Yes |
 | `products` | array | Product / service catalogue | Yes |
-| `stockItems` | array | Materials kept on hand, with minimum levels | Yes |
+| `stockItems` | array | Materials kept on hand, with safety stock levels | Yes |
 | `stockMoves` | array | Every stock change (receive / use / count) | Yes |
 | `purchaseRequests` | array | Requests to buy stock, their approval and delivery | Yes |
 | `companyInfo` | object | Seller details printed on every document | Yes |
@@ -167,7 +167,7 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 | `category` | enum | Y | `steel` | `electrical` \| `steel` \| `construction` \| `maintenance` \| `other`. |
 | `unit` | string | Y | `กล่อง` | Unit of count. |
 | `qty` | number | Y | `0` | On hand, ≥ 0, 2 dp. Changed only by a stock move (or the opening balance when the item is created). |
-| `minQty` | number | Y | `3` | Minimum level, ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
+| `minQty` | number | Y | `3` | Safety stock (the reorder level; shown as "Safety stock" in the app), ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
 | `maxQty` | number \| null | N | `20` | Full level. A purchase request tops the item up to it; when empty, twice `minQty`. |
 | `supplier` | string | N | `บจก. ภูเก็ตเหล็กไทย` | Usual supplier; updated when goods are received. |
 | `unitCost` | number \| null | N | `520` | Last price paid per unit (THB); updated when goods are received. |
@@ -201,7 +201,7 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 | `pricedBy` / `pricedAt` | string | N | | Set when an approver added the price. If the priced total is above `managerMax`, `approvalLevel` becomes `owner` and the request stays `pending` for the Owner. |
 | `jobId` | string | N | `PO20261015001` | Optional job. Foreign key → `purchaseOrders.id`. |
 | `note` | string | N | | ≤ 140 chars. |
-| `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its minimum). |
+| `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its safety stock level). |
 | `approvalLevel` | enum | Y | `manager` | `auto` (total ≤ autoApprove, and a technician still within techMonthly) \| `manager` (≤ managerMax, or no price) \| `owner`. |
 | `status` | enum | Y | `pending` | `pending` → `approved` → `ordered` → `received`; or `rejected` / `cancelled`. Receiving is allowed from `approved` too. |
 | `requestedBy` / `requestedAt` | string | Y | `wichai@baigamgab.co` | `system` for automatic requests. |

@@ -3,7 +3,7 @@
 // Materials kept on hand. Quantities change only through movements:
 //   in    = Receive (adds)       out = Use (subtracts, may name a job)
 //   count = stock-take (sets the exact figure found on the shelf)
-// An item is "low" at or below its minimum and "out" at zero. Low items
+// An item is "low" at or below its safety stock (minQty) and "out" at zero. Low items
 // raise a badge on the Stock tab, a banner on Overview and Stock, and an
 // island after sign-in (see startupNotices in ui.js).
 // Who: Technician, Manager and Admin record movements; Manager and Admin
@@ -32,7 +32,7 @@ function stockPill(s) {
   return `<span class="pill ${cls}">${esc(stockStatusLabel(s))}</span>`;
 }
 
-// Items that need reordering: out of stock first, then the emptiest relative to minimum.
+// Items that need reordering: out of stock first, then the emptiest relative to safety stock.
 function stockAlerts() {
   const ratio = s => (Number(s.qty) || 0) / Math.max(Number(s.minQty) || 1, 1);
   return stockItems.filter(s => stockState(s) !== 'ok').sort((a, b) => ratio(a) - ratio(b));

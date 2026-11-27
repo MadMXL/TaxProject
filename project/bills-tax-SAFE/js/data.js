@@ -340,7 +340,7 @@ let purchaseRequests = [
       orderedBy: 'preecha@baigamgab.co', orderedAt: '2026-10-27T03:00:00.000Z',
       receivedBy: 'wichai@baigamgab.co', receivedAt: '2026-10-28T02:00:00.000Z', receivedQty: 20, receivedPrice: 145, receivedTotal: 2900 },
     { id: 'PR-2026-0004', date: '2026-11-06', itemId: 'STK-005', itemName: 'ลวดเชื่อม 2.6 มม. (กล่อง 5 กก.)', unit: 'กล่อง', qty: 6,
-      supplier: 'บจก. ภูเก็ตเหล็กไทย', unitPrice: 420, total: 2520, jobId: '', note: 'สร้างอัตโนมัติ: สต็อกถึงขั้นต่ำ', source: 'auto',
+      supplier: 'บจก. ภูเก็ตเหล็กไทย', unitPrice: 420, total: 2520, jobId: '', note: 'สร้างอัตโนมัติ: สต็อกถึงระดับสต็อกสำรอง', source: 'auto',
       approvalLevel: 'auto', status: 'ordered',
       requestedBy: 'system', requestedAt: '2026-11-06T09:15:00.000Z',
       approvedBy: 'system', approvedAt: '2026-11-06T09:15:00.000Z',
