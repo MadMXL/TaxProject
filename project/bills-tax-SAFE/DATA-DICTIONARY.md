@@ -61,7 +61,8 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `fromPO` | string | N | `PO20260915001` | Source purchase order when converted. Foreign key → `purchaseOrders.id`. |
 | `dueDate` | string (date) | N | `2026-10-13` | Invoices and tax invoices only (empty for a bill). Defaults to `date` + 30 days in the form; older records without it use the same rule. Must not be before `date`. |
 | `validUntil` | string (date) | N | `2026-12-12` | Quotations only. Defaults to `date` + 30 days; must not be before `date`. After it passes with no answer the quotation shows as expired (it can still be accepted). |
-| `acceptedBy` / `acceptedAt` | string | N | | Quotations: the customer accepted (recorded by Sales, Manager or Admin). |
+| `emailedBy` / `emailedAt` | string | N | | Quotations: last time **Email to customer** was used (it downloads the PDF and opens a mail draft to `customerEmail`). The customer answers only by replying to that email. |
+| `acceptedBy` / `acceptedAt` | string | N | | Quotations: the customer accepted by email (recorded by Sales, Manager or Admin). |
 | `jobId` | string | N | `PO20261120001` | Quotations: the job opened on acceptance. Foreign key → `purchaseOrders.id`. |
 | `declinedBy` / `declinedAt` / `declineReason` | string | N | `ราคาสูงไป` | Quotations: the customer declined; the reason is required. |
 | `fromQuotation` | string | N | `DOC-2026-1101` | Invoices made from a job that came from a quotation. Foreign key → `quotations.id`. |
