@@ -418,6 +418,7 @@ function openStockItemForm(id) {
   </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
   document.addEventListener('keydown', stockSheetKey);
+  redrawItemPicture();
   document.getElementById('siName').focus();
 }
 

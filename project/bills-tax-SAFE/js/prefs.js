@@ -389,18 +389,27 @@ let itemPicForm = null;        // { id: item id or null for a new item }
 function itemPictureField(s) {
   itemPicture = null;
   itemPicForm = { id: s ? s.id : null };
-  return `<div class="field"><span class="field-label">${L('itemPicture')}</span><div id="siPic" class="pic-field">${itemPictureInner(s)}</div>
+  // Both states are drawn once; changing the picture only sets img.src and shows / hides
+  // parts, so a picture never goes through innerHTML.
+  return `<div class="field"><span class="field-label">${L('itemPicture')}</span>
+    <div id="siPic" class="pic-field">
+      <span id="siPicBox" class="thumb thumb-lg"><img id="siPicImg" alt="${esc(L('itemPicture'))}"></span>
+      <span id="siPicNone" class="thumb thumb-lg thumb-empty" aria-hidden="true">${icon('image', '')}</span>
+      <span class="acc-btns"><button type="button" class="btn btn-secondary btn-sm" onclick="pickItemPicture()">${icon('image')}<span id="siPicPick"></span></button>
+        <button type="button" id="siPicClear" class="btn btn-secondary btn-sm" onclick="clearItemPicture()">${L('imgRemove')}</button></span>
+    </div>
     <span class="cell-sub">${esc(L('imgHint'))}</span></div>`;
 }
-function itemPictureInner(s) {
-  const v = itemPicture === null ? (s ? stockImageOf(s.id) : '') : itemPicture;
-  return `${v ? `<span class="thumb thumb-lg"><img src="${v}" alt="${esc(L('itemPicture'))}"></span>` : `<span class="thumb thumb-lg thumb-empty" aria-hidden="true">${icon('image', '')}</span>`}
-    <span class="acc-btns"><button type="button" class="btn btn-secondary btn-sm" onclick="pickItemPicture()">${icon('image')}${L(v ? 'imgChange' : 'imgAdd')}</button>
-    ${v ? `<button type="button" class="btn btn-secondary btn-sm" onclick="clearItemPicture()">${L('imgRemove')}</button>` : ''}</span>`;
-}
+// Called after the form is on the page, and whenever its picture changes.
 function redrawItemPicture() {
-  const el = document.getElementById('siPic');
-  if (el && itemPicForm) el.innerHTML = itemPictureInner(itemPicForm.id ? stockItems.find(x => x.id === itemPicForm.id) : null);
+  if (!itemPicForm || !document.getElementById('siPic')) return;
+  const v = itemPicture === null ? (itemPicForm.id ? stockImageOf(itemPicForm.id) : '') : itemPicture;
+  const img = document.getElementById('siPicImg');
+  if (isPicture(v)) img.src = v; else img.removeAttribute('src');
+  document.getElementById('siPicBox').hidden = !v;
+  document.getElementById('siPicNone').hidden = !!v;
+  document.getElementById('siPicClear').hidden = !v;
+  document.getElementById('siPicPick').textContent = L(v ? 'imgChange' : 'imgAdd');
 }
 async function pickItemPicture() {
   const form = itemPicForm;
