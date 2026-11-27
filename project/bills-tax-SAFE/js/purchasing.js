@@ -9,7 +9,7 @@
 //
 // Limits live in companyInfo.purchaseLimits (Admin → Company). Nobody approves
 // their own request except the Owner; technicians request but never approve.
-// A request is created automatically when stock drops to its minimum, with the
+// A request is created automatically when stock drops to its safety stock, with the
 // quantity topped up to the item's full level and the cheapest known supplier.
 // Receiving adds the stock, books the cost on the job and records the price in
 // Supplier Prices. Requests are never deleted, only cancelled (audit trail).
@@ -42,7 +42,7 @@ function supplierQuote(item) {
   return { supplier: item.supplier || '', unitPrice: Number(item.unitCost) || 0 };
 }
 
-// Top the item up to its full level (twice the minimum when none is set).
+// Top the item up to its full level (twice the safety stock when none is set).
 function suggestedQty(item) {
   const full = Number(item.maxQty) > 0 ? Number(item.maxQty) : (Number(item.minQty) || 0) * 2;
   return Math.max(Math.ceil(full - (Number(item.qty) || 0)), 1);
@@ -117,7 +117,7 @@ function autoRequestFor(item) {
   if (openRequestFor(item.id)) return null;
   const q = supplierQuote(item);
   const p = createPurchaseRequest({ item, qty: suggestedQty(item), supplier: q.supplier, unitPrice: q.unitPrice,
-    note: getLang() === 'th' ? 'สร้างอัตโนมัติ: สต็อกถึงขั้นต่ำ' : 'Created automatically: stock reached its minimum', auto: true });
+    note: getLang() === 'th' ? 'สร้างอัตโนมัติ: สต็อกถึงระดับสต็อกสำรอง' : 'Created automatically: stock reached its safety stock level', auto: true });
   persistPurchases();
   return p;
 }
@@ -203,7 +203,7 @@ function renderPurchasesView() {
   const suggRows = sugg.map(s => {
     const q = supplierQuote(s), n = suggestedQty(s), est = n * q.unitPrice;
     return `<tr>
-      <td><div class="cell-strong">${esc(s.name)}</div><div class="cell-sub tnum">${L('onHand')} ${fmtQty(s.qty)} / ${L('minLevel')} ${fmtQty(s.minQty)} ${esc(s.unit)}</div></td>
+      <td><span class="with-thumb">${stockThumb(s)}<span><span class="cell-strong" style="display:block;">${esc(s.name)}</span><span class="cell-sub tnum">${L('onHand')} ${fmtQty(s.qty)} / ${L('minLevel')} ${fmtQty(s.minQty)} ${esc(s.unit)}</span></span></span></td>
       <td class="num tnum">${fmtQty(n)} ${esc(s.unit)}</td>
       <td>${esc(q.supplier || '—')}</td>
       <td class="num tnum">${q.unitPrice > 0 ? baht(est) : '—'}</td>

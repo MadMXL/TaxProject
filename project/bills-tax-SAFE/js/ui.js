@@ -30,8 +30,8 @@ const LANG = {
     matSub:'Compare what each supplier charges for the same material',
     customersSub:'{c} customers · {p} products and services',
     // stock
-    stockSub:'{n} items · {low} at or below minimum', addStockItem:'Add Item', editStockItem:'Edit Item',
-    itemName:'Item name', category:'Category', onHand:'On hand', minLevel:'Minimum', lastMove:'Last change',
+    stockSub:'{n} items · {low} at or below safety stock', addStockItem:'Add Item', editStockItem:'Edit Item',
+    itemName:'Item name', category:'Category', onHand:'On hand', minLevel:'Safety stock', lastMove:'Last change',
     catElectrical:'Electrical', catSteel:'Steel & welding', catConstruction:'Construction', catMaintenance:'Maintenance', catOther:'Other',
     stOk:'In stock', stLow:'Low', stOut:'Out of stock',
     receive:'Receive', use:'Use', count:'Count', history:'History',
@@ -40,8 +40,8 @@ const LANG = {
     forJob:'For job (optional)', noJob:'No job', moveNote:'Note (optional)', moveNotePh:'e.g. supplier, delivery note no., site',
     nowOnHand:'On hand now', afterMove:'After this change',
     recentMoves:'Recent stock changes', noMoves:'No stock changes recorded yet',
-    noStock:'No stock items yet', noStockHint:'Add the materials you keep on hand, with a minimum level for each.',
-    lowBannerOne:'{name} is at or below its minimum level', lowBannerMany:'{n} items are at or below their minimum level',
+    noStock:'No stock items yet', noStockHint:'Add the materials you keep on hand, with a safety stock level for each.',
+    lowBannerOne:'{name} is at or below its safety stock', lowBannerMany:'{n} items are at or below their safety stock',
     outBanner:'{n} out of stock', openStock:'Open Stock',
     stockSaved:'Stock updated', stockItemAdded:'Item added', stockItemUpdated:'Item updated', stockItemDeleted:'Stock item deleted',
     useTooMuch:'Only {n} {unit} on hand. Use that amount or less.', enterQty:'Enter a quantity greater than 0',
@@ -64,12 +64,12 @@ const LANG = {
     prRuleAuto:'Up to {a}', prRuleMgr:'{a} to {b}', prRuleOwner:'Above {b}',
     roleManager:'Manager', roleOwner:'Owner', approvedAuto:'Approved automatically', approvedBy:'Approved by',
     prMyMonth:'Your orders this month', prMonthLimit:'{used} of {limit}',
-    prSuggest:'Suggested orders', prSuggestSub:'At or below minimum, with no request yet. Quantity tops each item up to its full level.',
+    prSuggest:'Suggested orders', prSuggestSub:'At or below safety stock, with no request yet. Quantity tops each item up to its full level.',
     requestAll:'Request all ({n})', request:'Request', suggestedQty:'Suggested qty', estCost:'Est. cost', noPriceYet:'no price yet',
     prOpen:'Open', prWaiting:'Waiting approval', prToOrder:'To order', prOrdered:'Ordered', prReceived:'Received', prClosed:'Rejected / cancelled',
     stWaitingFor:'Waiting for {who}', stApprovedToOrder:'Approved, to order', stCancelled:'Cancelled',
     markOrdered:'Mark ordered', cancelRequest:'Cancel request', keepRequest:'Keep it', noOwnApprove:'Your own request needs the Owner',
-    noRequests:'No purchase requests', noRequestsHint:'Requests appear here when stock reaches its minimum or someone asks to buy.',
+    noRequests:'No purchase requests', noRequestsHint:'Requests appear here when stock reaches its safety stock level or someone asks to buy.',
     fullLevelShort:'full', alreadyOpen:'{id} is already open for this item',
     outcomeAuto:'Approved automatically when you send it', outcomeMgr:'Goes to a Manager for approval', outcomeOwner:'Goes to the Owner for approval',
     outcomeMonthly:'Goes to a Manager: this passes your monthly limit ({used} of {limit} used)', outcomeNoPrice:'No price yet: a Manager adds the price, then approves',
@@ -194,8 +194,8 @@ const LANG = {
     matSub:'เทียบราคาวัสดุชนิดเดียวกันจากผู้ขายแต่ละราย',
     customersSub:'ลูกค้า {c} ราย · สินค้าและบริการ {p} รายการ',
     // stock
-    stockSub:'{n} รายการ · ต่ำกว่าขั้นต่ำ {low} รายการ', addStockItem:'เพิ่มรายการ', editStockItem:'แก้ไขรายการ',
-    itemName:'ชื่อวัสดุ', category:'หมวด', onHand:'คงเหลือ', minLevel:'ขั้นต่ำ', lastMove:'เปลี่ยนแปลงล่าสุด',
+    stockSub:'{n} รายการ · ต่ำกว่าสต็อกสำรอง {low} รายการ', addStockItem:'เพิ่มรายการ', editStockItem:'แก้ไขรายการ',
+    itemName:'ชื่อวัสดุ', category:'หมวด', onHand:'คงเหลือ', minLevel:'สต็อกสำรอง', lastMove:'เปลี่ยนแปลงล่าสุด',
     catElectrical:'งานไฟฟ้า', catSteel:'เหล็กและงานเชื่อม', catConstruction:'งานก่อสร้าง', catMaintenance:'งานซ่อมบำรุง', catOther:'อื่นๆ',
     stOk:'พร้อมใช้', stLow:'ใกล้หมด', stOut:'หมด',
     receive:'รับเข้า', use:'เบิกใช้', count:'ตรวจนับ', history:'ประวัติ',
@@ -204,8 +204,8 @@ const LANG = {
     forJob:'สำหรับงาน (ไม่บังคับ)', noJob:'ไม่ระบุงาน', moveNote:'หมายเหตุ (ไม่บังคับ)', moveNotePh:'เช่น ผู้ขาย เลขที่ใบส่งของ หน้างาน',
     nowOnHand:'คงเหลือตอนนี้', afterMove:'หลังบันทึก',
     recentMoves:'ความเคลื่อนไหวล่าสุด', noMoves:'ยังไม่มีการเคลื่อนไหวของสต็อก',
-    noStock:'ยังไม่มีรายการสต็อก', noStockHint:'เพิ่มวัสดุที่มีเก็บไว้ พร้อมกำหนดจำนวนขั้นต่ำของแต่ละรายการ',
-    lowBannerOne:'{name} เหลือถึงหรือต่ำกว่าขั้นต่ำแล้ว', lowBannerMany:'วัสดุ {n} รายการเหลือถึงหรือต่ำกว่าขั้นต่ำ',
+    noStock:'ยังไม่มีรายการสต็อก', noStockHint:'เพิ่มวัสดุที่มีเก็บไว้ พร้อมกำหนดจำนวนสต็อกสำรองของแต่ละรายการ',
+    lowBannerOne:'{name} เหลือถึงหรือต่ำกว่าสต็อกสำรองแล้ว', lowBannerMany:'วัสดุ {n} รายการเหลือถึงหรือต่ำกว่าสต็อกสำรอง',
     outBanner:'หมด {n} รายการ', openStock:'เปิดหน้าสต็อก',
     stockSaved:'บันทึกสต็อกแล้ว', stockItemAdded:'เพิ่มรายการแล้ว', stockItemUpdated:'บันทึกรายการแล้ว', stockItemDeleted:'ลบรายการสต็อกแล้ว',
     useTooMuch:'มีคงเหลือเพียง {n} {unit} เบิกได้ไม่เกินจำนวนนี้', enterQty:'กรอกจำนวนที่มากกว่า 0',
@@ -228,12 +228,12 @@ const LANG = {
     prRuleAuto:'ไม่เกิน {a}', prRuleMgr:'{a} ถึง {b}', prRuleOwner:'เกิน {b}',
     roleManager:'ผู้จัดการ', roleOwner:'เจ้าของ', approvedAuto:'อนุมัติอัตโนมัติ', approvedBy:'อนุมัติโดย',
     prMyMonth:'ยอดสั่งซื้อของคุณเดือนนี้', prMonthLimit:'{used} จาก {limit}',
-    prSuggest:'รายการที่ควรสั่งซื้อ', prSuggestSub:'ถึงหรือต่ำกว่าขั้นต่ำและยังไม่มีคำขอ จำนวนที่แนะนำคือเติมให้ถึงระดับเต็ม',
+    prSuggest:'รายการที่ควรสั่งซื้อ', prSuggestSub:'ถึงหรือต่ำกว่าสต็อกสำรองและยังไม่มีคำขอ จำนวนที่แนะนำคือเติมให้ถึงระดับเต็ม',
     requestAll:'ขอซื้อทั้งหมด ({n})', request:'ขอซื้อ', suggestedQty:'จำนวนแนะนำ', estCost:'ราคาโดยประมาณ', noPriceYet:'ยังไม่มีราคา',
     prOpen:'ยังไม่ปิด', prWaiting:'รออนุมัติ', prToOrder:'รอสั่งซื้อ', prOrdered:'สั่งแล้ว', prReceived:'รับของแล้ว', prClosed:'ไม่อนุมัติ / ยกเลิก',
     stWaitingFor:'รอ{who}อนุมัติ', stApprovedToOrder:'อนุมัติแล้ว รอสั่ง', stCancelled:'ยกเลิก',
     markOrdered:'สั่งซื้อแล้ว', cancelRequest:'ยกเลิกคำขอ', keepRequest:'เก็บไว้', noOwnApprove:'คำขอของคุณเองต้องให้เจ้าของอนุมัติ',
-    noRequests:'ยังไม่มีคำขอซื้อ', noRequestsHint:'คำขอจะแสดงที่นี่เมื่อสต็อกถึงขั้นต่ำ หรือมีผู้ขอซื้อ',
+    noRequests:'ยังไม่มีคำขอซื้อ', noRequestsHint:'คำขอจะแสดงที่นี่เมื่อสต็อกถึงระดับสต็อกสำรอง หรือมีผู้ขอซื้อ',
     fullLevelShort:'ระดับเต็ม', alreadyOpen:'มีคำขอ {id} สำหรับรายการนี้อยู่แล้ว',
     outcomeAuto:'อนุมัติอัตโนมัติทันทีที่ส่ง', outcomeMgr:'ส่งให้ผู้จัดการอนุมัติ', outcomeOwner:'ส่งให้เจ้าของอนุมัติ',
     outcomeMonthly:'ส่งให้ผู้จัดการ: เกินวงเงินรายเดือนของคุณ (ใช้ไป {used} จาก {limit})', outcomeNoPrice:'ยังไม่มีราคา: ผู้จัดการจะใส่ราคาแล้วอนุมัติ',
@@ -429,12 +429,11 @@ function icon(name, cls){
 // ═══════════════════════════════════════════════════════════════
 function renderApp() {
   document.documentElement.setAttribute('data-theme', getMode() === 'dark' ? 'dark' : 'light');
+  document.documentElement.lang = getLang();   // so screen readers use the right voice
   const app = document.getElementById('app');
   // Snapshot the document form (if open) so re-rendering never loses typed input.
   const docSnap = currentView === 'new' ? captureDocForm() : null;
   const role  = sessionStorage.getItem('userRole') || 'sales';
-  const email = sessionStorage.getItem('userEmail') || '';
-  const name  = sessionStorage.getItem('userName') || email;
 
   // Each role only reaches its own pages; anything else falls back to its first page.
   const nav = navModel(role);
@@ -469,16 +468,15 @@ function renderApp() {
               <button class="ghost-btn" onclick="openPalette()" aria-label="${L('search')}" title="${L('search')} (${isMac() ? '⌘' : 'Ctrl'} K)">
                 ${icon('search')}<span class="uname">${L('search')}</span><kbd class="kbd-hint">${isMac() ? '⌘' : 'Ctrl'} K</kbd>
               </button>
-              <span class="chip-user">
-                <span class="uname">${esc(name)}</span>
-                <span class="sep">·</span>
-                <b>${esc(getRoleLabel(role))}</b>
-              </span>
-              <button class="ghost-btn" onclick="toggleMode()" title="Toggle theme" aria-label="Toggle theme">
+              <button id="a11yBtn" class="ghost-btn" onclick="openA11y('a11yBtn')" title="${L('a11y')}" aria-label="${L('a11y')}: ${L('a11ySub')}">
+                ${icon('access')}<span class="aa" aria-hidden="true">Aa</span>
+              </button>
+              <button class="ghost-btn hide-phone" onclick="toggleMode()" title="${L('toggleTheme')}" aria-label="${L('toggleTheme')}">
                 ${icon(getMode() === 'dark' ? 'sun' : 'moon')}
               </button>
-              <button class="ghost-btn" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
-              <button class="ghost-btn" onclick="logout()">${icon('logout')}<span class="uname">${L('signOut')}</span></button>
+              <button class="ghost-btn hide-phone" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
+              <button class="ghost-btn hide-phone" onclick="logout()" title="${L('signOut')}" aria-label="${L('signOut')}">${icon('logout')}<span class="uname hide-mid">${L('signOut')}</span></button>
+              ${accountChip()}
             </div>
           </div>
         </header>
@@ -1654,13 +1652,15 @@ function adminLoadUsers() {
   if (auth.currentUser) { done = true; doLoad(); }
 
   function doLoad() {
-    database.ref('users').once('value').then(snap => {
+    // Photos are a bonus: without them (or before the rules are published) the list still shows.
+    const photos = database.ref('userPhotos').once('value').then(s => s.val() || {}).catch(() => ({}));
+    Promise.all([database.ref('users').once('value'), photos]).then(([snap, faces]) => {
       const data = snap.val();
       if (!data) { container.innerHTML = `<p class="muted" style="font-size:var(--t-meta);">${L('noUsers')}</p>`; return; }
       const rolePill = { admin:'pill-rejected', manager:'pill-open', sales:'pill-approved', technician:'pill-draft' };
       const rows = Object.entries(data).map(([uid, u]) => `
         <tr>
-          <td class="cell-strong">${esc(u.name) || '—'}</td>
+          <td class="cell-strong"><span class="with-thumb">${avatar(u.name || u.email, faces[uid])}<span>${esc(u.name) || '—'}</span></span></td>
           <td class="muted">${esc(u.email) || '—'}</td>
           <td><span class="pill pill-plain ${rolePill[u.role] || 'pill-neutral'}">${esc(u.role) || '—'}</span></td>
           <td class="muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
@@ -2213,6 +2213,8 @@ function paletteSource() {
   if (canDocs) add(A, 'plus', L('addCustomer'), '', () => showAddCustomerModal());
   if (canDocs) add(A, 'plus', L('addProduct'), '', () => showAddProductModal());
   if (canEditStock()) add(A, 'plus', L('addStockItem'), L('stock'), () => openStockItemForm(), 'stock material inventory');
+  add(A, 'access', L('a11y'), L('a11ySub'), () => openA11y('a11yBtn'), 'accessibility text size font colour color blind contrast ตาบอดสี ตัวอักษร');
+  add(A, 'user', L('myPhoto'), L('account'), () => openAccount(), 'photo picture profile account รูป');
   add(A, getMode() === 'dark' ? 'sun' : 'moon', L('toggleTheme'), '', toggleMode, 'theme dark light');
   add(A, 'dot', L('switchLang'), '', () => setLang(getLang() === 'en' ? 'th' : 'en'), 'language thai english ภาษา');
 

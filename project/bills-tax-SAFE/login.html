@@ -12,6 +12,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="js/a11y.js"></script>
   <script>
     try {
       var m = localStorage.getItem('appMode');
@@ -36,6 +37,8 @@
     <h1>Sign in</h1>
     <p class="sub">Enter your credentials to continue</p>
 
+    <div class="login-size" role="group" aria-label="Text size / ขนาดตัวอักษร" id="loginSize"></div>
+
     <div class="alert-err hidden" id="errorMsg" style="margin-bottom:14px;"></div>
 
     <form id="loginForm" class="util-row">
@@ -52,6 +55,15 @@
   </div>
 </div>
 
+<script>
+  // Text size before signing in (the rest of the settings are in the app).
+  function drawLoginSize() {
+    const now = getA11y().text;
+    document.getElementById('loginSize').innerHTML = A11Y_TEXT.map(t =>
+      `<button type="button" aria-pressed="${now === t}" aria-label="${t}%" style="font-size:${(t / 100 * 15).toFixed(1)}px" onclick="setA11y({ text: ${t} });drawLoginSize()">Aก</button>`).join('');
+  }
+  drawLoginSize();
+</script>
 <script>
   let firebaseReady = false;
   let auth, db;

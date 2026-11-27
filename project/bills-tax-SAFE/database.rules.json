@@ -47,6 +47,23 @@
       }
     },
 
+    "userPhotos": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'manager')",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (auth.uid === $uid || (root.child('users').child(auth.uid).child('role').val() === 'admin' && !newData.exists()))",
+        ".validate": "newData.isString() && newData.val().length < 60000 && newData.val().matches(/^data:image\\/jpeg;base64,[A-Za-z0-9+\\/=]+$/)"
+      }
+    },
+
+    "stockImages": {
+      ".read": "auth != null",
+      "$itemId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'manager' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".validate": "newData.isString() && newData.val().length < 60000 && newData.val().matches(/^data:image\\/jpeg;base64,[A-Za-z0-9+\\/=]+$/)"
+      }
+    },
+
     "$other": { ".read": false, ".write": false }
   }
 }

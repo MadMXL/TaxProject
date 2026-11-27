@@ -34,6 +34,11 @@ Those rules:
 - stop any user from changing their own `role` (only an admin/manager session can
   write a `users/$uid` node, and `role` is validated against the four allowed values)
 
+- let each user write only their own photo (`userPhotos/<uid>`; an admin may remove one), and only
+  `admin` / `manager` write `stockImages/`; both accept only a small JPEG data URL
+
+**Publish the rules again after this update**, or every picture save is refused.
+
 Bootstrapping: create the first `admin` user's `users/<uid>` node by hand in the
 Console (Data tab) — with these rules, nobody can create the first admin from the app.
 

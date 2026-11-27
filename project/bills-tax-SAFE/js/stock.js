@@ -3,7 +3,7 @@
 // Materials kept on hand. Quantities change only through movements:
 //   in    = Receive (adds)       out = Use (subtracts, may name a job)
 //   count = stock-take (sets the exact figure found on the shelf)
-// An item is "low" at or below its minimum and "out" at zero. Low items
+// An item is "low" at or below its safety stock (minQty) and "out" at zero. Low items
 // raise a badge on the Stock tab, a banner on Overview and Stock, and an
 // island after sign-in (see startupNotices in ui.js).
 // Who: Technician, Manager and Admin record movements; Manager and Admin
@@ -32,7 +32,7 @@ function stockPill(s) {
   return `<span class="pill ${cls}">${esc(stockStatusLabel(s))}</span>`;
 }
 
-// Items that need reordering: out of stock first, then the emptiest relative to minimum.
+// Items that need reordering: out of stock first, then the emptiest relative to safety stock.
 function stockAlerts() {
   const ratio = s => (Number(s.qty) || 0) / Math.max(Number(s.minQty) || 1, 1);
   return stockItems.filter(s => stockState(s) !== 'ok').sort((a, b) => ratio(a) - ratio(b));
@@ -146,7 +146,7 @@ function stockResultsHTML() {
       actions.push(`<button class="act act-danger" onclick="deleteStockItem('${s.id}')">${L('delete')}</button>`);
     }
     return `<tr class="stock-row is-${st}">
-      <td><button class="row-btn cell-strong stock-name" onclick="openStockHistory('${s.id}')">${esc(s.name)}</button><div class="cell-sub">${esc(categoryLabel(s.category))}</div></td>
+      <td><span class="with-thumb">${stockThumb(s)}<span><button class="row-btn cell-strong stock-name" onclick="openStockHistory('${s.id}')">${esc(s.name)}</button><span class="cell-sub" style="display:block;">${esc(categoryLabel(s.category))}</span></span></span></td>
       <td class="num"><span class="qty qty-${st} tnum">${fmtQty(s.qty)}</span> <span class="cell-sub">${esc(s.unit)}</span></td>
       <td class="num muted tnum">${fmtQty(s.minQty)}</td>
       <td>${stockPill(s)}${pr ? `<div class="cell-sub">${esc(Lf('onOrder', { id: pr.id }))}</div>` : ''}</td>
@@ -206,7 +206,7 @@ function openStockMove(id, type) {
   <div id="stockSheet" class="scrim" onclick="if(event.target.id==='stockSheet')closeStockSheet()">
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="smTitle" style="max-width:460px;">
       <div class="sheet-head">
-        <div><div class="k">${esc(categoryLabel(s.category))}</div><div id="smTitle" class="h">${esc(s.name)}</div></div>
+        <div class="with-thumb">${stockThumb(s)}<div><div class="k">${esc(categoryLabel(s.category))}</div><div id="smTitle" class="h">${esc(s.name)}</div></div></div>
         <button class="sheet-x" onclick="closeStockSheet()" aria-label="${L('close')}">${icon('x', '')}</button>
       </div>
       <form class="sheet-body" onsubmit="event.preventDefault();saveStockMove()">
@@ -343,6 +343,7 @@ function openStockHistory(id) {
         <button class="sheet-x" onclick="closeStockHistory()" aria-label="${L('close')}">${icon('x', '')}</button>
       </div>
       <div class="sheet-body">
+        ${stockThumb(s, 'thumb-xl')}
         <div class="grid-2">
           <div class="stat" style="--stat-accent:var(--${stockState(s) === 'ok' ? 'st-approved' : stockState(s) === 'low' ? 'st-pending' : 'st-rejected'});">
             <div class="stat-label">${L('onHand')}</div><div class="stat-value tnum">${fmtQty(s.qty)} <small class="muted">${esc(s.unit)}</small></div>
@@ -404,6 +405,7 @@ function openStockItemForm(id) {
           <label class="field"><span class="field-label">${L('lastPrice')}</span>
             <input id="siCost" class="input tnum" type="number" inputmode="decimal" min="0" step="0.01" value="${s && s.unitCost != null ? esc(s.unitCost) : ''}"></label>
         </div>
+        ${itemPictureField(s)}
         <label class="field"><span class="field-label">${L('usualSupplier')}</span>
           <input id="siSupplier" class="input" maxlength="80" value="${esc(s && s.supplier ? s.supplier : '')}"></label>
         <div id="siError" class="alert-err hidden" role="alert"></div>
@@ -438,6 +440,7 @@ function saveStockItem(id) {
 
   const now = new Date();
   const by = sessionStorage.getItem('userEmail') || '';
+  let savedId = id;
   if (id) {
     const s = stockItems.find(x => x.id === id);
     if (!s) return;
@@ -447,12 +450,14 @@ function saveStockItem(id) {
     const next = stockItems.reduce((m, s) => Math.max(m, parseInt(String(s.id).replace(/\D/g, ''), 10) || 0), 0) + 1;
     const item = { id: 'STK-' + String(next).padStart(3, '0'), name, category: g('siCat'), unit, qty, minQty: roundQty(minQty), ...buying, updatedAt: now.toISOString(), updatedBy: by };
     stockItems.push(item);
+    savedId = item.id;
     if (qty > 0) stockMoves.push({ id: 'MOV-' + now.getTime(), itemId: item.id, itemName: name, type: 'count', qty, after: qty, jobId: '', note: getLang() === 'th' ? 'ยอดยกมา' : 'Opening balance', date: localDateISO(now), at: now.toISOString(), by });
   }
   persistStock();
   closeStockSheet();
   renderApp();
   showNotification('✅ ' + L(id ? 'stockItemUpdated' : 'stockItemAdded'), { detail: name });
+  commitItemPicture(savedId);   // a failed picture shows its own message; the item itself is already saved
 }
 
 function deleteStockItem(id) {

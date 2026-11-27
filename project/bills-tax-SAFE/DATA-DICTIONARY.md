@@ -23,11 +23,13 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `materialPrices` | array | Price per unit per supplier, for comparison | Yes |
 | `customers` | array | Customer master data | Yes |
 | `products` | array | Product / service catalogue | Yes |
-| `stockItems` | array | Materials kept on hand, with minimum levels | Yes |
+| `stockItems` | array | Materials kept on hand, with safety stock levels | Yes |
 | `stockMoves` | array | Every stock change (receive / use / count) | Yes |
 | `purchaseRequests` | array | Requests to buy stock, their approval and delivery | Yes |
 | `companyInfo` | object | Seller details printed on every document | Yes |
 | `users/{uid}` | object per user | Name, email and role of each account | Admin pages only |
+| `userPhotos/{uid}` | string per user | Profile photo | Own photo only; the Team page loads all |
+| `stockImages/{itemId}` | string per item | Picture of a stock item | Yes, except Sales |
 | `archive/{list}/{id}` | object keyed by record ID | Soft-deleted and archived records | **No**, only on demand |
 
 ---
@@ -168,7 +170,7 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 | `category` | enum | Y | `steel` | `electrical` \| `steel` \| `construction` \| `maintenance` \| `other`. |
 | `unit` | string | Y | `กล่อง` | Unit of count. |
 | `qty` | number | Y | `0` | On hand, ≥ 0, 2 dp. Changed only by a stock move (or the opening balance when the item is created). |
-| `minQty` | number | Y | `3` | Minimum level, ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
+| `minQty` | number | Y | `3` | Safety stock (the reorder level; shown as "Safety stock" in the app), ≥ 0. **Low** when `qty ≤ minQty`; **Out** when `qty ≤ 0`. Low/out items raise the Stock badge, the Overview/Stock banner and the sign-in warning. |
 | `maxQty` | number \| null | N | `20` | Full level. A purchase request tops the item up to it; when empty, twice `minQty`. |
 | `supplier` | string | N | `บจก. ภูเก็ตเหล็กไทย` | Usual supplier; updated when goods are received. |
 | `unitCost` | number \| null | N | `520` | Last price paid per unit (THB); updated when goods are received. |
@@ -202,7 +204,7 @@ Rules: `amount + wht` must be > 0 and may not exceed the balance (no over-paymen
 | `pricedBy` / `pricedAt` | string | N | | Set when an approver added the price. If the priced total is above `managerMax`, `approvalLevel` becomes `owner` and the request stays `pending` for the Owner. |
 | `jobId` | string | N | `PO20261015001` | Optional job. Foreign key → `purchaseOrders.id`. |
 | `note` | string | N | | ≤ 140 chars. |
-| `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its minimum). |
+| `source` | enum | Y | `manual` | `manual` \| `auto` (created when stock reached its safety stock level). |
 | `approvalLevel` | enum | Y | `manager` | `auto` (total ≤ autoApprove, and a technician still within techMonthly) \| `manager` (≤ managerMax, or no price) \| `owner`. |
 | `status` | enum | Y | `pending` | `pending` → `approved` → `ordered` → `received`; or `rejected` / `cancelled`. Receiving is allowed from `approved` too. |
 | `requestedBy` / `requestedAt` | string | Y | `wichai@baigamgab.co` | `system` for automatic requests. |
@@ -227,6 +229,19 @@ Approval rules: nobody approves their own request except Admin (the owner); a Ma
 | `email` | string | Sign-in email (Firebase Authentication). |
 | `role` | enum | `admin` \| `manager` \| `sales` \| `technician`. Validated by the database rules. |
 | `createdAt` | string (timestamp) | |
+
+## 8a. Pictures: `userPhotos/{uid}` and `stockImages/{itemId}`
+
+Each record is one string: a 256 × 256 JPEG as a data URL (`data:image/jpeg;base64,…`), shorter than 60,000 characters (checked by the rules). The app redraws every chosen photo to this size first, which also drops hidden data such as GPS position. `null` removes the picture.
+
+| Node | Key | Fit | Read | Write |
+|---|---|---|---|---|
+| `userPhotos/{uid}` | Firebase Auth user ID | Cropped to fill the square | Own photo; Manager / Admin read all | Own photo; Admin may remove any |
+| `stockImages/{itemId}` | Foreign key → `stockItems.id` | Whole picture on white | Any signed-in user | Manager / Admin |
+
+Pictures are kept apart from `stockItems` because that list is written whole. A deleted item keeps its picture, so restoring it from the Archive brings the picture back. The user's own photo is cached in `localStorage.userPhoto:<uid>`; stock pictures are not cached, so offline they show a placeholder.
+
+**Accessibility settings** are not in the database. They are kept in the browser per user: `localStorage.a11y:<uid>` (and `a11y`, the last one used, for the sign-in page): `text` 100 | 115 | 130 | 150, `colors` default | safe | mono, `contrast`, `marks`, `motion` (true / false).
 
 ## 9. `archive/{list}/{id}` — soft delete and archive
 
