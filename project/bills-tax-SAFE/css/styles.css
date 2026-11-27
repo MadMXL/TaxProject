@@ -15,12 +15,13 @@
   /* ink ramp — cool near-black */
   --ink:    #1A2230;
   --ink-2:  #4A5468;
-  --ink-3:  #7A8496;
+  --ink-3:  #5F6B7D;   /* secondary text: 4.5:1 or more on every background (WCAG 1.4.3) */
 
   /* line ramp — express hierarchy with borders */
   --line:    #E4E8EE;
   --line-2:  #CFD6E0;
   --line-3:  #AEB8C6;
+  --control-line: #7F8A9B;   /* edges of inputs and switches: 3:1 or more (WCAG 1.4.11) */
 
   /* brand — deep navy for chrome + primary action */
   --brand:        #16233E;
@@ -34,10 +35,10 @@
   --accent-wash:  #E9EEF9;
 
   /* states as tokens (fact first, colour second) */
-  --st-draft:     #8A6D2F;  --st-draft-wash:    #F4EEDF;
-  --st-pending:   #A6690B;  --st-pending-wash:  #F6EBDA;
-  --st-approved:  #1C7A5A;  --st-approved-wash: #DFF0E9;
-  --st-rejected:  #C23B3B;  --st-rejected-wash: #F6E2E2;
+  --st-draft:     #7E5F22;  --st-draft-wash:    #F4EEDF;
+  --st-pending:   #8A5A00;  --st-pending-wash:  #F6EBDA;
+  --st-approved:  #1A6F52;  --st-approved-wash: #DFF0E9;
+  --st-rejected:  #B53535;  --st-rejected-wash: #F6E2E2;
   --st-info:      #1F49A8;  --st-info-wash:     #E9EEF9;
 
   --pos: #1C7A5A;
@@ -85,11 +86,12 @@
 
   --ink:    #E7ECF3;
   --ink-2:  #A2AEBF;
-  --ink-3:  #6E7A8B;
+  --ink-3:  #8A95A6;
 
   --line:    #28323F;
   --line-2:  #36424F;
   --line-3:  #4A5766;
+  --control-line: #6A778B;
 
   --brand:        #17233B;
   --brand-2:      #101A2C;
@@ -385,7 +387,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 .input, .select, .textarea {
   width: 100%; padding: 9px 12px;
   background: var(--surface); color: var(--ink);
-  border: 1px solid var(--line-2); border-radius: var(--r-control);
+  border: 1px solid var(--control-line); border-radius: var(--r-control);
   font-size: var(--t-sm); outline: none;
   transition: border-color .12s var(--ease), box-shadow .12s var(--ease);
 }
@@ -1067,7 +1069,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 @media (max-width: 480px) { .size-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .size-grid-3 { grid-template-columns: 1fr; } }
 .size-btn {
   min-height: 74px; padding: 8px 6px; border-radius: var(--r-control);
-  border: 2px solid var(--line-2); background: var(--surface); color: var(--ink);
+  border: 2px solid var(--control-line); background: var(--surface); color: var(--ink);
   display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;
   font-size: var(--t-micro); font-weight: 600; text-align: center; line-height: 1.25;
 }
@@ -1077,7 +1079,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 .size-a { font-weight: 700; line-height: 1.2; min-height: 34px; display: grid; place-items: center; }
 .swatches { display: flex; gap: 3px; min-height: 34px; align-items: center; }
 .swatches i { width: 15px; height: 22px; border-radius: 4px; }
-.sw-default i:nth-child(1) { background: #1C7A5A; } .sw-default i:nth-child(2) { background: #A6690B; } .sw-default i:nth-child(3) { background: #C23B3B; } .sw-default i:nth-child(4) { background: #8A6D2F; }
+.sw-default i:nth-child(1) { background: #1A6F52; } .sw-default i:nth-child(2) { background: #8A5A00; } .sw-default i:nth-child(3) { background: #B53535; } .sw-default i:nth-child(4) { background: #7E5F22; }
 .sw-safe i:nth-child(1) { background: #0B5FA5; } .sw-safe i:nth-child(2) { background: #C89B1D; } .sw-safe i:nth-child(3) { background: #7A1F00; } .sw-safe i:nth-child(4) { background: #5B6472; }
 .sw-mono i:nth-child(1) { background: #000; } .sw-mono i:nth-child(2) { background: #5A5A5A; } .sw-mono i:nth-child(3) { background: #2F2F2F; } .sw-mono i:nth-child(4) { background: #A0A0A0; }
 .switches { border: 1px solid var(--line-2); border-radius: var(--r-control); overflow: hidden; }
@@ -1086,13 +1088,13 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 .switch-row:hover { background: var(--surface-2); }
 .switch-row:disabled { opacity: .75; cursor: default; }
 .switch-label { font-weight: 600; font-size: var(--t-sm); }
-.switch-track { flex: 0 0 46px; height: 26px; border-radius: 99px; background: var(--line-3); position: relative; transition: background .14s var(--ease); }
+.switch-track { flex: 0 0 46px; height: 26px; border-radius: 99px; background: var(--control-line); position: relative; transition: background .14s var(--ease); }
 .switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .14s var(--ease); }
 .switch-row[aria-checked="true"] .switch-track { background: var(--accent); }
 .switch-row[aria-checked="true"] .switch-track::after { transform: translateX(20px); }
 .a11y-preview { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: 6px; }
 .login-size { display: flex; gap: 6px; margin: 10px 0 14px; }
-.login-size button { flex: 1; min-height: 44px; border-radius: var(--r-control); border: 2px solid var(--line-2); color: var(--ink); font-weight: 700; }
+.login-size button { flex: 1; min-height: 44px; border-radius: var(--r-control); border: 2px solid var(--control-line); color: var(--ink); font-weight: 700; }
 .login-size button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); }
 
 /* ---- Accessibility: larger text ---- */
@@ -1107,11 +1109,11 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 
 /* ---- Accessibility: high contrast ---- */
 :root[data-contrast="high"] {
-  --ink: #000; --ink-2: #1F2733; --ink-3: #3E4858; --line: #9AA4B2; --line-2: #6B7686; --line-3: #4A5566; --brand-ink-2: #fff;
+  --ink: #000; --ink-2: #1F2733; --ink-3: #3E4858; --line: #9AA4B2; --line-2: #6B7686; --line-3: #4A5566; --control-line: #4A5566; --brand-ink-2: #fff;
   --st-draft: #5E4814; --st-pending: #744600; --st-approved: #0B5A40; --st-rejected: #9B1C1C; --pos: #0B5A40; --neg: #9B1C1C; --focus: #0B3FA8;
 }
 :root[data-contrast="high"][data-theme="dark"] {
-  --ink: #fff; --ink-2: #E6EBF2; --ink-3: #C3CDD9; --line: #55626F; --line-2: #7A8794; --line-3: #9AA6B2;
+  --ink: #fff; --ink-2: #E6EBF2; --ink-3: #C3CDD9; --line: #55626F; --line-2: #7A8794; --line-3: #9AA6B2; --control-line: #9AA6B2;
   --st-draft: #E8CF97; --st-pending: #FFC27A; --st-approved: #86EBC6; --st-rejected: #FFA39D; --pos: #86EBC6; --neg: #FFA39D; --focus: #9CC0FF;
 }
 :root[data-contrast="high"] :focus-visible { outline-width: 3px; }
@@ -1137,7 +1139,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 /* ---- Accessibility: black and white (pictures keep their colours) ---- */
 :root[data-colors="mono"] {
   --paper: #F4F4F4; --surface-2: #EEE; --surface-3: #E4E4E4; --ink: #111; --ink-2: #333; --ink-3: #595959;
-  --line: #DDD; --line-2: #BBB; --line-3: #888; --brand: #1A1A1A; --brand-2: #000; --brand-ink: #FFF; --brand-ink-2: #D0D0D0;
+  --line: #DDD; --line-2: #BBB; --line-3: #888; --control-line: #6E6E6E; --brand: #1A1A1A; --brand-2: #000; --brand-ink: #FFF; --brand-ink-2: #D0D0D0;
   --accent: #1F1F1F; --accent-ink: #E4E4E4; --accent-wash: #E8E8E8; --focus: #000;
   --st-draft: #6A6A6A; --st-draft-wash: #F2F2F2; --st-pending: #4C4C4C; --st-pending-wash: #E6E6E6;
   --st-approved: #000; --st-approved-wash: #EDEDED; --st-rejected: #2F2F2F; --st-rejected-wash: #DCDCDC;
@@ -1145,7 +1147,7 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
 }
 :root[data-colors="mono"][data-theme="dark"] {
   --paper: #111; --surface: #1A1A1A; --surface-2: #262626; --surface-3: #303030; --ink: #F2F2F2; --ink-2: #C8C8C8; --ink-3: #A0A0A0;
-  --line: #333; --line-2: #4A4A4A; --line-3: #6A6A6A; --brand: #262626; --brand-2: #1A1A1A; --accent: #F2F2F2; --accent-wash: #303030; --focus: #FFF;
+  --line: #333; --line-2: #4A4A4A; --line-3: #6A6A6A; --control-line: #7A7A7A; --brand: #262626; --brand-2: #1A1A1A; --accent: #F2F2F2; --accent-wash: #303030; --focus: #FFF;
   --st-draft: #9A9A9A; --st-draft-wash: #242424; --st-pending: #BDBDBD; --st-pending-wash: #2C2C2C;
   --st-approved: #FFF; --st-approved-wash: #2A2A2A; --st-rejected: #DADADA; --st-rejected-wash: #363636;
   --st-info: #F2F2F2; --st-info-wash: #2A2A2A; --pos: #FFF; --neg: #DADADA;
