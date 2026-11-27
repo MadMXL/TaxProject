@@ -203,7 +203,7 @@ function renderPurchasesView() {
   const suggRows = sugg.map(s => {
     const q = supplierQuote(s), n = suggestedQty(s), est = n * q.unitPrice;
     return `<tr>
-      <td><div class="cell-strong">${esc(s.name)}</div><div class="cell-sub tnum">${L('onHand')} ${fmtQty(s.qty)} / ${L('minLevel')} ${fmtQty(s.minQty)} ${esc(s.unit)}</div></td>
+      <td><span class="with-thumb">${stockThumb(s)}<span><span class="cell-strong" style="display:block;">${esc(s.name)}</span><span class="cell-sub tnum">${L('onHand')} ${fmtQty(s.qty)} / ${L('minLevel')} ${fmtQty(s.minQty)} ${esc(s.unit)}</span></span></span></td>
       <td class="num tnum">${fmtQty(n)} ${esc(s.unit)}</td>
       <td>${esc(q.supplier || '—')}</td>
       <td class="num tnum">${q.unitPrice > 0 ? baht(est) : '—'}</td>

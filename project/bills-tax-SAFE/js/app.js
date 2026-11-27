@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Make sure renderApp is loaded before calling it
     if (typeof renderApp === 'function') {
+        loadMyPhoto();
+        loadStockImages();
         applyRoleDefaults();
         renderApp();
         // Check for QR ?doc= param now that data is loaded

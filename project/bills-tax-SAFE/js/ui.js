@@ -429,12 +429,11 @@ function icon(name, cls){
 // ═══════════════════════════════════════════════════════════════
 function renderApp() {
   document.documentElement.setAttribute('data-theme', getMode() === 'dark' ? 'dark' : 'light');
+  document.documentElement.lang = getLang();   // so screen readers use the right voice
   const app = document.getElementById('app');
   // Snapshot the document form (if open) so re-rendering never loses typed input.
   const docSnap = currentView === 'new' ? captureDocForm() : null;
   const role  = sessionStorage.getItem('userRole') || 'sales';
-  const email = sessionStorage.getItem('userEmail') || '';
-  const name  = sessionStorage.getItem('userName') || email;
 
   // Each role only reaches its own pages; anything else falls back to its first page.
   const nav = navModel(role);
@@ -469,16 +468,15 @@ function renderApp() {
               <button class="ghost-btn" onclick="openPalette()" aria-label="${L('search')}" title="${L('search')} (${isMac() ? '⌘' : 'Ctrl'} K)">
                 ${icon('search')}<span class="uname">${L('search')}</span><kbd class="kbd-hint">${isMac() ? '⌘' : 'Ctrl'} K</kbd>
               </button>
-              <span class="chip-user">
-                <span class="uname">${esc(name)}</span>
-                <span class="sep">·</span>
-                <b>${esc(getRoleLabel(role))}</b>
-              </span>
-              <button class="ghost-btn" onclick="toggleMode()" title="Toggle theme" aria-label="Toggle theme">
+              <button id="a11yBtn" class="ghost-btn" onclick="openA11y('a11yBtn')" title="${L('a11y')}" aria-label="${L('a11y')}: ${L('a11ySub')}">
+                ${icon('access')}<span class="aa" aria-hidden="true">Aa</span>
+              </button>
+              <button class="ghost-btn hide-phone" onclick="toggleMode()" title="${L('toggleTheme')}" aria-label="${L('toggleTheme')}">
                 ${icon(getMode() === 'dark' ? 'sun' : 'moon')}
               </button>
-              <button class="ghost-btn" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
-              <button class="ghost-btn" onclick="logout()">${icon('logout')}<span class="uname">${L('signOut')}</span></button>
+              <button class="ghost-btn hide-phone" onclick="setLang(getLang()==='en'?'th':'en')">${getLang() === 'en' ? 'ไทย' : 'EN'}</button>
+              <button class="ghost-btn hide-phone" onclick="logout()" title="${L('signOut')}" aria-label="${L('signOut')}">${icon('logout')}<span class="uname hide-mid">${L('signOut')}</span></button>
+              ${accountChip()}
             </div>
           </div>
         </header>
@@ -1654,13 +1652,15 @@ function adminLoadUsers() {
   if (auth.currentUser) { done = true; doLoad(); }
 
   function doLoad() {
-    database.ref('users').once('value').then(snap => {
+    // Photos are a bonus: without them (or before the rules are published) the list still shows.
+    const photos = database.ref('userPhotos').once('value').then(s => s.val() || {}).catch(() => ({}));
+    Promise.all([database.ref('users').once('value'), photos]).then(([snap, faces]) => {
       const data = snap.val();
       if (!data) { container.innerHTML = `<p class="muted" style="font-size:var(--t-meta);">${L('noUsers')}</p>`; return; }
       const rolePill = { admin:'pill-rejected', manager:'pill-open', sales:'pill-approved', technician:'pill-draft' };
       const rows = Object.entries(data).map(([uid, u]) => `
         <tr>
-          <td class="cell-strong">${esc(u.name) || '—'}</td>
+          <td class="cell-strong"><span class="with-thumb">${avatar(u.name || u.email, faces[uid])}<span>${esc(u.name) || '—'}</span></span></td>
           <td class="muted">${esc(u.email) || '—'}</td>
           <td><span class="pill pill-plain ${rolePill[u.role] || 'pill-neutral'}">${esc(u.role) || '—'}</span></td>
           <td class="muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
@@ -2213,6 +2213,8 @@ function paletteSource() {
   if (canDocs) add(A, 'plus', L('addCustomer'), '', () => showAddCustomerModal());
   if (canDocs) add(A, 'plus', L('addProduct'), '', () => showAddProductModal());
   if (canEditStock()) add(A, 'plus', L('addStockItem'), L('stock'), () => openStockItemForm(), 'stock material inventory');
+  add(A, 'access', L('a11y'), L('a11ySub'), () => openA11y('a11yBtn'), 'accessibility text size font colour color blind contrast ตาบอดสี ตัวอักษร');
+  add(A, 'user', L('myPhoto'), L('account'), () => openAccount(), 'photo picture profile account รูป');
   add(A, getMode() === 'dark' ? 'sun' : 'moon', L('toggleTheme'), '', toggleMode, 'theme dark light');
   add(A, 'dot', L('switchLang'), '', () => setLang(getLang() === 'en' ? 'th' : 'en'), 'language thai english ภาษา');
 

@@ -28,6 +28,8 @@ Live nodes are also cached in the browser's `localStorage` under the same key so
 | `purchaseRequests` | array | Requests to buy stock, their approval and delivery | Yes |
 | `companyInfo` | object | Seller details printed on every document | Yes |
 | `users/{uid}` | object per user | Name, email and role of each account | Admin pages only |
+| `userPhotos/{uid}` | string per user | Profile photo | Own photo only; the Team page loads all |
+| `stockImages/{itemId}` | string per item | Picture of a stock item | Yes, except Sales |
 | `archive/{list}/{id}` | object keyed by record ID | Soft-deleted and archived records | **No**, only on demand |
 
 ---
@@ -226,6 +228,19 @@ Approval rules: nobody approves their own request except Admin (the owner); a Ma
 | `email` | string | Sign-in email (Firebase Authentication). |
 | `role` | enum | `admin` \| `manager` \| `sales` \| `technician`. Validated by the database rules. |
 | `createdAt` | string (timestamp) | |
+
+## 8a. Pictures: `userPhotos/{uid}` and `stockImages/{itemId}`
+
+Each record is one string: a 256 × 256 JPEG as a data URL (`data:image/jpeg;base64,…`), shorter than 60,000 characters (checked by the rules). The app redraws every chosen photo to this size first, which also drops hidden data such as GPS position. `null` removes the picture.
+
+| Node | Key | Fit | Read | Write |
+|---|---|---|---|---|
+| `userPhotos/{uid}` | Firebase Auth user ID | Cropped to fill the square | Own photo; Manager / Admin read all | Own photo; Admin may remove any |
+| `stockImages/{itemId}` | Foreign key → `stockItems.id` | Whole picture on white | Any signed-in user | Manager / Admin |
+
+Pictures are kept apart from `stockItems` because that list is written whole. A deleted item keeps its picture, so restoring it from the Archive brings the picture back. The user's own photo is cached in `localStorage.userPhoto:<uid>`; stock pictures are not cached, so offline they show a placeholder.
+
+**Accessibility settings** are not in the database. They are kept in the browser per user: `localStorage.a11y:<uid>` (and `a11y`, the last one used, for the sign-in page): `text` 100 | 115 | 130 | 150, `colors` default | safe | mono, `contrast`, `marks`, `motion` (true / false).
 
 ## 9. `archive/{list}/{id}` — soft delete and archive
 

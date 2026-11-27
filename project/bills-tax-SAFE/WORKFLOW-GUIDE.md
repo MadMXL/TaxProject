@@ -200,6 +200,16 @@ npx serve
 
 ---
 
+### **Test 6: Accessibility, photos and stock pictures** (publish `database.rules.json` first)
+- [ ] Top bar **Aa** → Text size Largest: all text grows, nothing is cut off; reload → still Largest; another user on the same computer has their own size
+- [ ] Sign-in page: the four **Aก** buttons change the text size before signing in
+- [ ] Colours → **Colour-blind safe**, then **Black and white**: each status shows a symbol (✓ ! ✕ ✎); High contrast darkens the text; Reset to standard
+- [ ] Top right shows your name, role and initials; click → **Add photo** → your face appears; it is there on another device too; **Remove photo** → initials again
+- [ ] Manager / Admin: Team page shows the photos
+- [ ] Manager / Admin: Stock → Edit → **Add picture** with a wide, a tall and a square photo → all show as the same square, with the whole item visible; Cancel keeps the old picture
+- [ ] Technician sees the pictures but cannot change them
+- [ ] A text file or a photo over 12 MB is refused with a message
+
 ## 🔧 TROUBLESHOOTING:
 
 ### **Problem: Login fails**
