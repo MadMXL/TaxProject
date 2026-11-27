@@ -60,9 +60,40 @@ const IMG_SIDE = 256;                       // px, square
 const IMG_MAX_FILE = 12 * 1024 * 1024;
 const IMG_MAX_CHARS = 60000;                // same limit as database.rules.json
 
-// Anything read back from storage is checked before it reaches an <img>.
+// Anything read back from storage is checked before it reaches an <img>: the format,
+// the length, and the size written in the JPEG header. Anyone signed in can write their
+// own photo directly, so a tiny file that claims to be 60000 × 60000 px could otherwise
+// freeze the browser of whoever views it. The app only ever stores 256 × 256.
+const IMG_MAX_SIDE = IMG_SIDE;
+const pictureChecked = new Map();
 function isPicture(v) {
-  return typeof v === 'string' && v.length < IMG_MAX_CHARS && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v);
+  if (typeof v !== 'string' || v.length >= IMG_MAX_CHARS || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v)) return false;
+  if (!pictureChecked.has(v)) {
+    const d = jpegSize(v);
+    if (pictureChecked.size > 500) pictureChecked.clear();
+    pictureChecked.set(v, !!d && d.w > 0 && d.h > 0 && d.w <= IMG_MAX_SIDE && d.h <= IMG_MAX_SIDE);
+  }
+  return pictureChecked.get(v);
+}
+// Width and height from the JPEG frame header (SOFn), or null if it isn't a well-formed JPEG.
+function jpegSize(v) {
+  let b;
+  try { b = atob(v.slice(v.indexOf(',') + 1)); } catch (e) { return null; }
+  if (b.charCodeAt(0) !== 0xFF || b.charCodeAt(1) !== 0xD8) return null;
+  let i = 2;
+  while (i + 9 < b.length) {
+    if (b.charCodeAt(i) !== 0xFF) return null;
+    const m = b.charCodeAt(i + 1);
+    if (m === 0xFF) { i++; continue; }
+    if (m === 0xD9 || m === 0xDA) return null;                 // end / scan data before any frame header
+    const len = (b.charCodeAt(i + 2) << 8) | b.charCodeAt(i + 3);
+    if (len < 2) return null;
+    if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+      return { h: (b.charCodeAt(i + 5) << 8) | b.charCodeAt(i + 6), w: (b.charCodeAt(i + 7) << 8) | b.charCodeAt(i + 8) };
+    }
+    i += 2 + len;
+  }
+  return null;
 }
 
 function loadPictureFile(file) {
@@ -124,6 +155,7 @@ function choosePicture(fit) {
 
 // ── Your photo ───────────────────────────────────────────────
 let myPhoto = '';
+let myPhotoSave = 0;          // newest save wins when two overlap
 
 function myUid() { return sessionStorage.getItem('userId') || ''; }
 function myPhotoKey() { return 'userPhoto:' + myUid(); }
@@ -160,10 +192,12 @@ function cacheMyPhoto() {
 }
 
 async function saveMyPhoto(v) {
+  const n = ++myPhotoSave;
   if (firebaseOn()) {
     try { await database.ref('userPhotos/' + myUid()).set(v || null); }
-    catch (e) { pictureError(e); return false; }
+    catch (e) { if (n === myPhotoSave) pictureError(e); return false; }
   }
+  if (n !== myPhotoSave) return false;
   myPhoto = v || '';
   cacheMyPhoto();
   refreshAccountChip();
@@ -300,6 +334,7 @@ function redrawA11y(focusKey) {
 
 // ── Stock pictures ───────────────────────────────────────────
 let stockImages = {};          // { itemId: data URL }
+const stockImageSave = {};     // { itemId: number }, newest save wins
 const CAT_ICON = { electrical: 'alert', steel: 'box', construction: 'building', maintenance: 'stock', other: 'box' };
 
 function stockImageOf(id) { return isPicture(stockImages[id]) ? stockImages[id] : ''; }
@@ -333,44 +368,62 @@ function loadStockImages() {
 function stockImagesChanged() { if (currentView === 'stock' || currentView === 'purchases') debouncedRender(); }
 
 async function saveStockImage(id, v) {
+  const n = stockImageSave[id] = (stockImageSave[id] || 0) + 1;
   if (firebaseOn()) {
     try { await database.ref('stockImages/' + id).set(v || null); }
-    catch (e) { pictureError(e); return false; }
+    catch (e) { if (n === stockImageSave[id]) pictureError(e); return false; }
   }
+  if (n !== stockImageSave[id]) return false;
   if (v) stockImages[id] = v; else delete stockImages[id];
   if (!firebaseOn()) { try { localStorage.setItem('stockImages', JSON.stringify(stockImages)); } catch (e) { console.warn('picture not kept', e); } }
   stockImagesChanged();
   return true;
 }
 
-// In the Add / Edit item form the picture is only a preview until Save.
+// In the Add / Edit item form the picture is only a preview until Save. It belongs to
+// one opened form: a photo still loading when that form is closed is dropped, never
+// given to the next item opened.
 let itemPicture = null;        // null = unchanged, '' = remove, data URL = new
+let itemPicForm = null;        // { id: item id or null for a new item }
 
 function itemPictureField(s) {
   itemPicture = null;
-  return `<div class="field"><span class="field-label">${L('itemPicture')}</span><div id="siPic" class="pic-field">${itemPictureInner(s)}</div>
+  itemPicForm = { id: s ? s.id : null };
+  // Both states are drawn once; changing the picture only sets img.src and shows / hides
+  // parts, so a picture never goes through innerHTML.
+  return `<div class="field"><span class="field-label">${L('itemPicture')}</span>
+    <div id="siPic" class="pic-field">
+      <span id="siPicBox" class="thumb thumb-lg"><img id="siPicImg" alt="${esc(L('itemPicture'))}"></span>
+      <span id="siPicNone" class="thumb thumb-lg thumb-empty" aria-hidden="true">${icon('image', '')}</span>
+      <span class="acc-btns"><button type="button" class="btn btn-secondary btn-sm" onclick="pickItemPicture()">${icon('image')}<span id="siPicPick"></span></button>
+        <button type="button" id="siPicClear" class="btn btn-secondary btn-sm" onclick="clearItemPicture()">${L('imgRemove')}</button></span>
+    </div>
     <span class="cell-sub">${esc(L('imgHint'))}</span></div>`;
 }
-function itemPictureInner(s) {
-  const v = itemPicture === null ? (s ? stockImageOf(s.id) : '') : itemPicture;
-  const id = s ? `'${s.id}'` : '';
-  return `${v ? `<span class="thumb thumb-lg"><img src="${v}" alt="${esc(L('itemPicture'))}"></span>` : `<span class="thumb thumb-lg thumb-empty" aria-hidden="true">${icon('image', '')}</span>`}
-    <span class="acc-btns"><button type="button" class="btn btn-secondary btn-sm" onclick="pickItemPicture(${id})">${icon('image')}${L(v ? 'imgChange' : 'imgAdd')}</button>
-    ${v ? `<button type="button" class="btn btn-secondary btn-sm" onclick="clearItemPicture(${id})">${L('imgRemove')}</button>` : ''}</span>`;
+// Called after the form is on the page, and whenever its picture changes.
+function redrawItemPicture() {
+  if (!itemPicForm || !document.getElementById('siPic')) return;
+  const v = itemPicture === null ? (itemPicForm.id ? stockImageOf(itemPicForm.id) : '') : itemPicture;
+  const img = document.getElementById('siPicImg');
+  if (isPicture(v)) img.src = v; else img.removeAttribute('src');
+  document.getElementById('siPicBox').hidden = !v;
+  document.getElementById('siPicNone').hidden = !!v;
+  document.getElementById('siPicClear').hidden = !v;
+  document.getElementById('siPicPick').textContent = L(v ? 'imgChange' : 'imgAdd');
 }
-function redrawItemPicture(id) {
-  const el = document.getElementById('siPic');
-  if (el) el.innerHTML = itemPictureInner(id ? stockItems.find(x => x.id === id) : null);
-}
-async function pickItemPicture(id) {
+async function pickItemPicture() {
+  const form = itemPicForm;
   const v = await choosePicture('contain');
-  if (v) { itemPicture = v; redrawItemPicture(id); }
+  if (!v || form !== itemPicForm || !document.getElementById('siPic')) return;   // form closed or replaced meanwhile
+  itemPicture = v;
+  redrawItemPicture();
 }
-function clearItemPicture(id) { itemPicture = ''; redrawItemPicture(id); }
+function clearItemPicture() { itemPicture = ''; redrawItemPicture(); }
 // Called by saveStockItem once the item has an id.
 function commitItemPicture(id) {
   const v = itemPicture;
   itemPicture = null;
+  itemPicForm = null;
   if (v === null || (v === '' && !stockImageOf(id))) return Promise.resolve(true);
   return saveStockImage(id, v);
 }
